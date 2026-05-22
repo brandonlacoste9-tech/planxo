@@ -6,43 +6,72 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const results: string[] = [];
 
-  // Create user
-  const { error: uErr } = await supabase.from("User").upsert({
-    id: "u1", username: "planxo", name: "Planxo", email: "info@planxo.ca",
-    timeZone: "America/Toronto", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
-  }, { onConflict: "id" });
-  results.push(uErr ? `User: ${uErr.message}` : "User: OK");
+  // Check if tables exist by trying to select
+  const { error: checkUser } = await supabase.from("User").select("id").limit(1);
 
-  // Event types
-  const ets = [
-    { id: "et1", userId: "u1", title: "Consultation de 30 minutes", slug: "consultation-30min", length: 30, location: "google-meet", price: 0, currency: "cad", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-    { id: "et2", userId: "u1", title: "Reunion d'une heure", slug: "reunion-1h", length: 60, location: "google-meet", price: 0, currency: "cad", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-    { id: "et3", userId: "u1", title: "Appel rapide de 15 minutes", slug: "appel-15min", length: 15, location: "phone", price: 0, currency: "cad", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-    { id: "et4", userId: "u1", title: "Consultation premium (49$)", slug: "consultation-payante", description: "Consultation avec paiement Stripe requis.", length: 30, location: "google-meet", price: 4900, currency: "cad", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-  ];
-  for (const et of ets) {
-    const { error } = await supabase.from("EventType").upsert(et, { onConflict: "id" });
-    results.push(error ? `EventType ${et.slug}: ${error.message}` : `EventType ${et.slug}: OK`);
+  if (checkUser?.message?.includes("does not exist") || checkUser?.message?.includes("schema cache")) {
+    // Tables don't exist — need to run migration
+    results.push("Tables missing — run supabase/migrations/001_planxo_schema.sql in Supabase SQL Editor");
+    results.push("Then visit /api/setup again to seed data");
+    return NextResponse.json({ status: "pending_migration", results });
   }
 
-  // Schedule
-  const { error: sErr } = await supabase.from("Schedule").upsert({
-    id: "s1", userId: "u1", name: "Heures de travail", timeZone: "America/Toronto", isDefault: true,
-    createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
-  }, { onConflict: "id" });
-  results.push(sErr ? `Schedule: ${sErr.message}` : "Schedule: OK");
+  // Tables exist, seed data
+  const now = new Date().toISOString();
 
-  // Availability (Mon-Fri 9-5)
-  const avails = [
-    { id: "a1", scheduleId: "s1", dayOfWeek: 1, startTime: "09:00", endTime: "17:00", isActive: true },
-    { id: "a2", scheduleId: "s1", dayOfWeek: 2, startTime: "09:00", endTime: "17:00", isActive: true },
-    { id: "a3", scheduleId: "s1", dayOfWeek: 3, startTime: "09:00", endTime: "17:00", isActive: true },
-    { id: "a4", scheduleId: "s1", dayOfWeek: 4, startTime: "09:00", endTime: "17:00", isActive: true },
-    { id: "a5", scheduleId: "s1", dayOfWeek: 5, startTime: "09:00", endTime: "17:00", isActive: true },
-  ];
-  for (const a of avails) {
-    const { error } = await supabase.from("Availability").upsert(a, { onConflict: "id" });
-    results.push(error ? `Availability day ${a.dayOfWeek}: ${error.message}` : `Availability day ${a.dayOfWeek}: OK`);
+  const { error: ue } = await supabase.from("User").upsert({
+    id: "u1", username: "planxo", name: "Planxo",
+    email: "info@planxo.ca", timeZone: "America/Toronto",
+    createdAt: now, updatedAt: now,
+  });
+  results.push(ue ? `User error: ${ue.message}` : "User OK");
+
+  const { error: e1 } = await supabase.from("EventType").upsert({
+    id: "et1", userId: "u1", title: "Consultation de 30 minutes", slug: "consultation-30min",
+    length: 30, location: "google-meet", color: "#242424", isActive: true,
+    minNotice: 60, bufferBefore: 10, bufferAfter: 10, maxPerDay: 12,
+    price: 0, currency: "cad", createdAt: now, updatedAt: now,
+  });
+  results.push(e1 ? `ET1: ${e1.message}` : "ET1 OK");
+
+  const { error: e2 } = await supabase.from("EventType").upsert({
+    id: "et2", userId: "u1", title: "Reunion d'une heure", slug: "reunion-1h",
+    length: 60, location: "google-meet", color: "#242424", isActive: true,
+    minNotice: 60, bufferBefore: 15, bufferAfter: 15, maxPerDay: 8,
+    price: 0, currency: "cad", createdAt: now, updatedAt: now,
+  });
+  results.push(e2 ? `ET2: ${e2.message}` : "ET2 OK");
+
+  const { error: e3 } = await supabase.from("EventType").upsert({
+    id: "et3", userId: "u1", title: "Appel rapide de 15 minutes", slug: "appel-15min",
+    length: 15, location: "phone", color: "#242424", isActive: true,
+    minNotice: 30, bufferBefore: 5, bufferAfter: 5, maxPerDay: 20,
+    price: 0, currency: "cad", createdAt: now, updatedAt: now,
+  });
+  results.push(e3 ? `ET3: ${e3.message}` : "ET3 OK");
+
+  const { error: e4 } = await supabase.from("EventType").upsert({
+    id: "et4", userId: "u1", title: "Consultation premium (49$)", slug: "consultation-payante",
+    description: "Consultation avec paiement Stripe requis.",
+    length: 30, location: "google-meet", color: "#242424", isActive: true,
+    minNotice: 60, bufferBefore: 10, bufferAfter: 10, maxPerDay: 12,
+    price: 4900, currency: "cad", createdAt: now, updatedAt: now,
+  });
+  results.push(e4 ? `ET4: ${e4.message}` : "ET4 OK");
+
+  const { error: se } = await supabase.from("Schedule").upsert({
+    id: "s1", userId: "u1", name: "Heures de travail",
+    timeZone: "America/Toronto", isDefault: true,
+    createdAt: now, updatedAt: now,
+  });
+  results.push(se ? `Schedule: ${se.message}` : "Schedule OK");
+
+  for (let d = 1; d <= 5; d++) {
+    const { error: ae } = await supabase.from("Availability").upsert({
+      id: `a${d}`, scheduleId: "s1", dayOfWeek: d,
+      startTime: "09:00", endTime: "17:00", isActive: true,
+    });
+    results.push(ae ? `Avail day${d}: ${ae.message}` : `Avail day${d} OK`);
   }
 
   return NextResponse.json({ status: "success", results });
