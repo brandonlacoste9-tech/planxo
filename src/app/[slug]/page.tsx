@@ -33,23 +33,38 @@ export default function BookingPage({ params }: { params: Promise<{ slug: string
   const [showTzPicker, setShowTzPicker] = useState(false);
   const [paidBookingId, setPaidBookingId] = useState("");
 
-  // Check for post-payment return
+  // Handle Stripe return + legacy booked param
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);
+    const bookingStatus = q.get("booking");
     const bid = q.get("booked");
+
+    if (bookingStatus === "success") {
+      setBooking({
+        status: "paid",
+        guestName: form.name || "",
+        eventTypeTitle: eventType?.title || "",
+      });
+      window.history.replaceState({}, "", `/${slug}`);
+      return;
+    }
+
+    if (bookingStatus === "cancelled") {
+      setError("Paiement annulé. Vous pouvez réessayer.");
+      window.history.replaceState({}, "", `/${slug}`);
+      return;
+    }
+
     if (bid) {
-      setPaidBookingId(bid);
-      // Fetch the booking to show confirmation
       fetch(`/api/v2/bookings/${bid}`).then(r => r.json()).then(d => {
         if (d.data) {
           const b = d.data;
           setBooking({ status: "confirmed", guestName: b.attendees?.[0]?.name || "", meetingUrl: b.meetingUrl, start: b.start, end: b.end, eventTypeTitle: "" });
-          // Clean URL
           window.history.replaceState({}, "", `/${slug}`);
         }
       });
     }
-  }, [slug]);
+  }, [slug, eventType]);
 
   // Calendar state
   const [currentMonth, setCurrentMonth] = useState(() => {
@@ -116,6 +131,31 @@ export default function BookingPage({ params }: { params: Promise<{ slug: string
     setError(""); setSubmitting(true);
     const slotData = slots.find((s) => s.time === selectedSlot);
     const startISO = slotData?.iso || new Date(`${date}T${selectedSlot}:00`).toISOString();
+
+    // If paid event type, redirect to Stripe Checkout
+    if (eventType!.price > 0) {
+      const res = await fetch("/api/stripe/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          eventTypeId: eventType!.id,
+          start: startISO,
+          attendee: { name: form.name, email: form.email, timeZone },
+          metadata: { notes: form.notes },
+        }),
+      });
+      setSubmitting(false);
+      if (res.ok) {
+        const json = await res.json();
+        window.location.href = json.data.checkoutUrl;
+      } else {
+        const err = await res.json();
+        setError(err.error || "Erreur de paiement.");
+      }
+      return;
+    }
+
+    // Free booking
     const res = await fetch("/api/v2/bookings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -126,19 +166,6 @@ export default function BookingPage({ params }: { params: Promise<{ slug: string
     if (res.ok) {
       const json = await res.json();
       const b = json.data;
-      // If payment is required, redirect to Stripe
-      if (b.status === "pending_payment") {
-        const payRes = await fetch(`/api/v2/bookings/${b.id}/pay`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ successUrl: `${window.location.origin}/${slug}?booked=${b.id}`, cancelUrl: window.location.href }),
-        });
-        if (payRes.ok) {
-          const payData = await payRes.json();
-          window.location.href = payData.data.checkoutUrl;
-          return;
-        }
-      }
       setBooking({ status: "confirmed", guestName: b.attendees?.[0]?.name || form.name, meetingUrl: b.meetingUrl, start: b.start, end: b.end, eventTypeTitle: eventType?.title });
     } else { setError("Erreur lors de la réservation."); }
   }
@@ -182,6 +209,26 @@ export default function BookingPage({ params }: { params: Promise<{ slug: string
           <a href={`/${slug}`} className="btn-outline">Réserver un autre</a>
         </div>
         <style href="confirm">{` .meeting-link{display:inline-block;margin-bottom:16px;padding:10px 20px;background:#ecfdf5;color:#059669;border-radius:8px;text-decoration:none;font-size:14px;font-weight:600} .meeting-link:hover{background:#d1fae5} .btn-outline{display:inline-block;padding:12px 24px;border-radius:8px;border:1px solid rgba(0,0,0,0.12);color:#242424;text-decoration:none;font-size:14px;font-weight:600;transition:all .15s} .btn-outline:hover{background:#f9fafb;border-color:rgba(0,0,0,0.2)} `}</style>
+      </div>
+    );
+  }
+
+  // ── Paid confirmation (Stripe return) ──
+  if (booking?.status === "paid") {
+    return (
+      <div className="page">
+        <div style={css.confirmCard}>
+          <div style={{...css.checkmark, background:"#fef3c7", color:"#92400e"}}>💳</div>
+          <h2 style={css.confirmTitle}>Paiement réussi!</h2>
+          <p style={css.confirmText}>
+            {booking.eventTypeTitle || eventType?.title}<br/>
+            Votre réservation a été payée et sera confirmée sous peu.<br/>
+            Vous recevrez une confirmation par courriel.
+          </p>
+          <p style={css.confirmSub}>Un courriel sera envoyé à {form.email || "votre adresse"}.</p>
+          <a href={`/${slug}`} className="btn-outline">Réserver un autre</a>
+        </div>
+        <style href="paid">{` .btn-outline{display:inline-block;padding:12px 24px;border-radius:8px;border:1px solid rgba(0,0,0,0.12);color:#242424;text-decoration:none;font-size:14px;font-weight:600;transition:all .15s} .btn-outline:hover{background:#f9fafb;border-color:rgba(0,0,0,0.2)} `}</style>
       </div>
     );
   }
@@ -283,7 +330,7 @@ export default function BookingPage({ params }: { params: Promise<{ slug: string
               <textarea className="input" placeholder="Notes (optionnel)" value={form.notes} onChange={e => setForm({...form,notes:e.target.value})} rows={2} />
               {error && <p style={css.errorText}>{error}</p>}
               <button type="submit" className="submit-btn" disabled={submitting}>
-                {submitting ? "Réservation en cours..." : "Confirmer le rendez-vous"}
+                {submitting ? "Réservation en cours..." : eventType!.price > 0 ? `Payer ${(eventType!.price / 100).toFixed(0)}$ · Confirmer` : "Confirmer le rendez-vous"}
               </button>
             </form>
           )}
