@@ -1,6 +1,6 @@
 export default function HomePage() {
   const t = {
-    nav: { solutions: "Solutions", enterprise: "Entreprise", calAi: "Planxo IA", developer: "Développeur", resources: "Ressources", pricing: "Tarifs", signIn: "Connexion", getStarted: "Commencer" },
+    nav: { solutions: "Solutions", enterprise: "Entreprise", calAi: "Planxo IA", developer: "Développeur", resources: "Ressources", pricing: "Tarifs", signIn: "Connexion", getStarted: "Essayer" },
     banner: "Planxo lance la v1.0",
     hero: { title: "La meilleure façon de planifier vos rendez-vous", subtitle: "Un logiciel de planification entièrement personnalisable pour les professionnels, les entreprises et les développeurs qui créent des plateformes de rendez-vous.", google: "S'inscrire avec Google", email: "S'inscrire avec courriel", noCard: "Aucune carte de crédit requise" },
     trust: "Utilisé par les entreprises québécoises les plus performantes",
@@ -14,7 +14,6 @@ export default function HomePage() {
 
   return (
     <div style={{ fontFamily: "'Inter', system-ui, -apple-system, sans-serif", background: "#ffffff", color: "#242424" }}>
-      {/* Nav */}
       <header style={{ position: "sticky", top: 0, zIndex: 50, background: "rgba(255,255,255,0.92)", backdropFilter: "blur(12px)", borderBottom: "1px solid rgba(0,0,0,0.04)" }}>
         <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 24px", height: 64, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 32 }}>
@@ -22,26 +21,24 @@ export default function HomePage() {
               <span style={{ fontFamily: "'Cal Sans', 'Inter', sans-serif", fontSize: 22, fontWeight: 700, color: "#242424", letterSpacing: "-0.5px" }}>Planxo</span>
             </a>
             <nav style={{ display: "flex", gap: 24, fontSize: 14, fontWeight: 500 }}>
-              <span style={{ color: "#898989", cursor: "pointer" }}>{t.nav.solutions}</span>
-              <a href="#" style={{ color: "#898989", textDecoration: "none" }}>{t.nav.enterprise}</a>
-              <a href="#" style={{ color: "#898989", textDecoration: "none" }}>{t.nav.calAi}</a>
-              <span style={{ color: "#898989", cursor: "pointer" }}>{t.nav.developer}</span>
-              <a href="#" style={{ color: "#898989", textDecoration: "none" }}>{t.nav.pricing}</a>
+              <a href="/consultation-30min" style={{ color: "#898989", textDecoration: "none" }}>{t.nav.solutions}</a>
+              <a href="#pricing" style={{ color: "#898989", textDecoration: "none" }}>{t.nav.enterprise}</a>
+              <a href="/consultation-30min" style={{ color: "#898989", textDecoration: "none" }}>{t.nav.calAi}</a>
+              <a href="/dashboard" style={{ color: "#898989", textDecoration: "none" }}>{t.nav.developer}</a>
+              <a href="#pricing" style={{ color: "#898989", textDecoration: "none" }}>{t.nav.pricing}</a>
             </nav>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-            <a href="#" style={{ color: "#898989", textDecoration: "none", fontSize: 14, fontWeight: 500 }}>{t.nav.signIn}</a>
-            <a href="/dashboard" style={{ background: "#242424", color: "#fff", padding: "8px 20px", borderRadius: 8, fontSize: 14, fontWeight: 600, textDecoration: "none" }}>{t.nav.getStarted}</a>
+            <a href="/dashboard" style={{ color: "#898989", textDecoration: "none", fontSize: 14, fontWeight: 500 }}>{t.nav.signIn}</a>
+            <a href="/consultation-30min" style={{ background: "#242424", color: "#fff", padding: "8px 20px", borderRadius: 8, fontSize: 14, fontWeight: 600, textDecoration: "none" }}>{t.nav.getStarted}</a>
           </div>
         </div>
       </header>
 
-      {/* Announcement Banner */}
       <div style={{ textAlign: "center", padding: "10px 0", fontSize: 13, color: "#898989", borderBottom: "1px solid rgba(0,0,0,0.04)" }}>
-        <a href="#" style={{ color: "#0099ff", textDecoration: "underline" }}>{t.banner}</a>
+        <a href="/consultation-30min" style={{ color: "#0099ff", textDecoration: "underline" }}>{t.banner}</a>
       </div>
 
-      {/* Hero */}
       <section style={{ maxWidth: 1200, margin: "0 auto", padding: "80px 24px", textAlign: "center" }}>
         <h1 style={{ fontFamily: "'Cal Sans', 'Inter', sans-serif", fontSize: 64, fontWeight: 700, lineHeight: 1.1, letterSpacing: "-0.5px", color: "#242424", maxWidth: 800, margin: "0 auto 24px" }}>
           {t.hero.title}
@@ -50,18 +47,17 @@ export default function HomePage() {
           {t.hero.subtitle}
         </p>
         <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap", marginBottom: 16 }}>
-          <a href="#" style={{ background: "#242424", color: "#fff", padding: "14px 32px", borderRadius: 8, fontSize: 16, fontWeight: 600, textDecoration: "none", display: "flex", alignItems: "center", gap: 8 }}>
+          <a href="/dashboard" style={{ background: "#242424", color: "#fff", padding: "14px 32px", borderRadius: 8, fontSize: 16, fontWeight: 600, textDecoration: "none", display: "flex", alignItems: "center", gap: 8 }}>
             <svg width="20" height="20" viewBox="0 0 24 24"><path fill="#fff" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
             {t.hero.google}
           </a>
-          <a href="/dashboard" style={{ border: "1px solid rgba(0,0,0,0.12)", color: "#242424", padding: "14px 32px", borderRadius: 8, fontSize: 16, fontWeight: 600, textDecoration: "none", background: "#fff", boxShadow: "rgba(34,42,53,0.05) 0px 4px 8px 0px" }}>
+          <a href="/consultation-30min" style={{ border: "1px solid rgba(0,0,0,0.12)", color: "#242424", padding: "14px 32px", borderRadius: 8, fontSize: 16, fontWeight: 600, textDecoration: "none", background: "#fff", boxShadow: "rgba(34,42,53,0.05) 0px 4px 8px 0px" }}>
             {t.hero.email}
           </a>
         </div>
         <p style={{ fontSize: 13, color: "#898989" }}>{t.hero.noCard}</p>
       </section>
 
-      {/* Trust Bar */}
       <section style={{ padding: "48px 24px", borderTop: "1px solid rgba(0,0,0,0.04)", borderBottom: "1px solid rgba(0,0,0,0.04)" }}>
         <p style={{ textAlign: "center", fontSize: 13, color: "#898989", marginBottom: 32, fontWeight: 500, textTransform: "uppercase", letterSpacing: "1px" }}>{t.trust}</p>
         <div style={{ maxWidth: 1000, margin: "0 auto", display: "flex", justifyContent: "center", gap: 40, flexWrap: "wrap", opacity: 0.25 }}>
@@ -69,7 +65,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* How it works */}
       <section style={{ maxWidth: 1200, margin: "0 auto", padding: "96px 24px" }}>
         <div style={{ display: "flex", gap: 80, alignItems: "flex-start" }}>
           <div style={{ flex: "0 0 340px" }}>
@@ -95,7 +90,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Benefits */}
       <section style={{ background: "#f9fafb", padding: "96px 24px" }}>
         <div style={{ maxWidth: 1200, margin: "0 auto" }}>
           <p style={{ fontSize: 13, color: "#898989", fontWeight: 600, textTransform: "uppercase", letterSpacing: "1px", textAlign: "center", marginBottom: 12 }}>{t.benefits.label}</p>
@@ -110,8 +104,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Pricing */}
-      <section style={{ maxWidth: 1200, margin: "0 auto", padding: "96px 24px" }}>
+      <section id="pricing" style={{ maxWidth: 1200, margin: "0 auto", padding: "96px 24px" }}>
         <p style={{ fontSize: 13, color: "#898989", fontWeight: 600, textTransform: "uppercase", letterSpacing: "1px", textAlign: "center", marginBottom: 12 }}>{t.pricing.label}</p>
         <h2 style={{ fontFamily: "'Cal Sans', 'Inter', sans-serif", fontSize: 48, fontWeight: 700, lineHeight: 1.1, color: "#242424", textAlign: "center", marginBottom: 12 }}>{t.pricing.title}</h2>
         <p style={{ fontSize: 16, color: "#898989", textAlign: "center", maxWidth: 500, margin: "0 auto 64px" }}>{t.pricing.subtitle}</p>
@@ -138,14 +131,12 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* CTA */}
       <section style={{ background: "#242424", padding: "96px 24px", textAlign: "center" }}>
         <h2 style={{ fontFamily: "'Cal Sans', 'Inter', sans-serif", fontSize: 48, fontWeight: 700, lineHeight: 1.1, color: "#fff", marginBottom: 16 }}>Prêt à simplifier vos rendez-vous?</h2>
         <p style={{ fontSize: 16, color: "rgba(255,255,255,0.5)", marginBottom: 32 }}>Rejoignez les professionnels québécois qui gagnent du temps chaque semaine.</p>
-        <a href="/dashboard" style={{ display: "inline-block", background: "#fff", color: "#242424", padding: "16px 40px", borderRadius: 8, fontWeight: 600, fontSize: 16, textDecoration: "none" }}>Commencer gratuitement</a>
+        <a href="/consultation-30min" style={{ display: "inline-block", background: "#fff", color: "#242424", padding: "16px 40px", borderRadius: 8, fontWeight: 600, fontSize: 16, textDecoration: "none" }}>Commencer gratuitement</a>
       </section>
 
-      {/* Footer */}
       <footer style={{ maxWidth: 1200, margin: "0 auto", padding: "48px 24px", display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid rgba(0,0,0,0.04)" }}>
         <span style={{ fontFamily: "'Cal Sans', 'Inter', sans-serif", fontSize: 18, fontWeight: 700, color: "#242424" }}>Planxo</span>
         <div style={{ fontSize: 13, color: "#898989" }}>
