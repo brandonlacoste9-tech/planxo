@@ -156,6 +156,43 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* ── TESTIMONIALS ── */}
+      <section style={{ padding: "96px 24px" }}>
+        <div style={{ maxWidth: 1100, margin: "0 auto" }}>
+          <p style={{ fontSize: 12, color: "#898989", fontWeight: 600, textTransform: "uppercase", letterSpacing: 1, textAlign: "center", marginBottom: 8 }}>Témoignages</p>
+          <h2 style={{ fontFamily: "'Cal Sans', 'Inter', sans-serif", fontSize: 40, fontWeight: 700, lineHeight: 1.15, color: "#242424", textAlign: "center", marginBottom: 8 }}>Pourquoi nos utilisateurs adorent Planxo</h2>
+          <p style={{ fontSize: 16, color: "#898989", textAlign: "center", maxWidth: 500, margin: "0 auto 48px" }}>Découvrez l'impact que nous avons eu sur ceux qui comptent le plus — nos clients.</p>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 16 }}>
+            {[
+              { quote: "Je me demandais si je devais choisir Planxo ou Calendly. Après un appel rapide avec l'équipe, j'ai été conquise. L'interface est fluide et le support est exceptionnel!", author: "Marie V.", handle: "@mariev_entrepreneure", platform: "twitter", color: "#1d9bf0" },
+              { quote: "Planxo est un rêve pour les développeurs. L'API v2 compatible Cal.com rend l'intégration ultra simple. Je l'ai connectée à mon CRM en une heure.", author: "Ahmed E.", handle: "@ahmed_dev_mtl", platform: "product_hunt", color: "#da552f" },
+              { quote: "Officiellement migré de Calendly à Planxo ⚡️ Mes clients trouvent l'expérience de réservation beaucoup plus fluide.", author: "Jean-Joseph", handle: "@jj_tech_qc", platform: "twitter", color: "#1d9bf0" },
+              { quote: "Incroyable. Je le recommande à tout le monde. Planxo m'aide à créer plus de rendez-vous spontanément, tellement c'est simple comparé aux autres.", author: "Ben L.", handle: "@ben_marketing", platform: "product_hunt", color: "#da552f" },
+              { quote: "Depuis que je suis passé à Planxo, j'ai réduit mes disponibilités à 2 jours par semaine. Je suis plus productif et j'ai plus de temps pour mes projets. Zéro spam.", author: "Nick B.", handle: "@nickb_consultant", platform: "twitter", color: "#1d9bf0" },
+              { quote: "2 jours avec Planxo m'ont suffi pour ne plus jamais regarder Calendly. Le design épuré et la rapidité de prise en main sont bluffants.", author: "Anuvesh S.", handle: "@anuvesh_fondateur", platform: "twitter", color: "#1d9bf0" },
+              { quote: "Très facile à configurer. Connecté à mon Google Calendar sans aucun problème. L'interface est vraiment soignée et professionnelle.", author: "Pankaj D.", handle: "@pankaj_designer", platform: "product_hunt", color: "#da552f" },
+              { quote: "J'adore le style minimaliste de Planxo. Exactement ce dont j'avais besoin pour mon entreprise de consultation.", author: "Clément D.", handle: "@clement_mtl", platform: "product_hunt", color: "#da552f" },
+              { quote: "Aujourd'hui, je suis officiellement un ambassadeur Planxo. Le produit est épique. Où est-ce que je peux acheter du merch??", author: "Farhaj M.", handle: "@farhaj_fan", platform: "twitter", color: "#1d9bf0" },
+              { quote: "Passé à Planxo directement sur le plan Pro pour avoir une URL personnalisée. Le UI et les fonctionnalités sont excellents. Aucun regret.", author: "Ry W.", handle: "@ry_builder", platform: "twitter", color: "#1d9bf0" },
+            ].map((t, i) => (
+              <div key={i} style={{ background: "#fff", borderRadius: 14, border: "1px solid rgba(0,0,0,0.05)", padding: 24, transition: "all .2s", display: "flex", flexDirection: "column", justifyContent: "space-between" }} className="card-hover">
+                <div>
+                  <div style={{ fontSize: 28, marginBottom: 12, color: t.color, opacity: 0.6 }}>“</div>
+                  <p style={{ fontSize: 14, color: "#242424", lineHeight: 1.65, marginBottom: 16, fontStyle: "italic" }}>{t.quote}</p>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, paddingTop: 12, borderTop: "1px solid rgba(0,0,0,0.04)" }}>
+                  <div style={{ width: 32, height: 32, borderRadius: "50%", background: `${t.color}15`, color: t.color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 700, flexShrink: 0 }}>{t.author[0]}</div>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "#242424" }}>{t.author}</div>
+                    <div style={{ fontSize: 12, color: t.color }}>{t.handle}</div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* ── PRICING ── */}
       <section id="pricing" style={{ maxWidth: 1200, margin: "0 auto", padding: "96px 24px" }}>
         <p style={{ fontSize: 12, color: "#898989", fontWeight: 600, textTransform: "uppercase", letterSpacing: 1, textAlign: "center", marginBottom: 8 }}>Tarifs</p>
