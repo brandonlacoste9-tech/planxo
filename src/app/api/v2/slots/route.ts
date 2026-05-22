@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { getExternalBusyTimes } from "@/lib/calendar-sync";
 
 export const dynamic = "force-dynamic";
 
-// GET /api/v2/slots?eventTypeId=xxx&startTime=2026-05-27T00:00:00Z&endTime=2026-05-28T00:00:00Z&timeZone=America/Toronto
-// Also supports: ?eventTypeSlug=xxx&username=planxo
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   let eventTypeId = searchParams.get("eventTypeId");
@@ -18,7 +17,7 @@ export async function GET(request: NextRequest) {
   if (!eventTypeId && eventTypeSlug) {
     const { data: user } = await supabase.from("User").select("id").eq("username", username).single();
     if (!user) return apiError("User not found", 404);
-    const { data: et } = await supabase.from("EventType").select("id").eq("slug", eventTypeSlug).eq("userId", user.id).single();
+    const { data: et } = await supabase.from("EventType").select("id,userId").eq("slug", eventTypeSlug).eq("userId", user.id).single();
     if (!et) return apiError("Event type not found", 404);
     eventTypeId = et.id;
   }
@@ -44,8 +43,11 @@ export async function GET(request: NextRequest) {
   const slotLen = eventType.length;
   const interval = 15;
 
-  // Get all bookings in range
-  const { data: bookings } = await supabase.from("Booking").select("startTime,endTime").eq("eventTypeId", eventTypeId).neq("status", "cancelled").gte("startTime", rangeStart.toISOString()).lte("startTime", rangeEnd.toISOString());
+  // Get all local bookings in range
+  const { data: localBookings } = await supabase.from("Booking").select("startTime,endTime").eq("eventTypeId", eventTypeId).neq("status", "cancelled").gte("startTime", rangeStart.toISOString()).lte("startTime", rangeEnd.toISOString());
+
+  // Get external calendar busy times (Google + Outlook)
+  const externalBusy = await getExternalBusyTimes(eventType.userId, rangeStart, rangeEnd);
 
   const slotsByDay: Record<string, string[]> = {};
 
@@ -71,8 +73,15 @@ export async function GET(request: NextRequest) {
         const bStart = new Date(slotStart.getTime() - bufB * 60000);
         const bEnd = new Date(slotEnd.getTime() + bufA * 60000);
 
-        const conflict = bookings?.some((b: any) => new Date(b.startTime) < bEnd && new Date(b.endTime) > bStart);
-        if (!conflict) daySlots.push(slotStart.toISOString());
+        // Check local booking conflicts
+        const localConflict = localBookings?.some((b: any) => new Date(b.startTime) < bEnd && new Date(b.endTime) > bStart);
+
+        // Check external calendar conflicts
+        const extConflict = externalBusy.some((busy) => busy.start < bEnd && busy.end > bStart);
+
+        if (!localConflict && !extConflict) {
+          daySlots.push(slotStart.toISOString());
+        }
       }
     }
 
@@ -80,10 +89,7 @@ export async function GET(request: NextRequest) {
     cursor.setDate(cursor.getDate() + 1);
   }
 
-  return NextResponse.json({
-    status: "success",
-    data: slotsByDay,
-  });
+  return NextResponse.json({ status: "success", data: slotsByDay });
 }
 
 function apiError(message: string, status: number) {
