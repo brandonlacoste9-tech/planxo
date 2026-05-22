@@ -1,7 +1,4 @@
 {
   "framework": "nextjs",
-  "buildCommand": "next build",
-  "rewrites": [
-    { "source": "/", "destination": "/index.html" }
-  ]
+  "buildCommand": "next build"
 }
