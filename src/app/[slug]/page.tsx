@@ -110,13 +110,16 @@ export default function BookingPage({ params }: { params: Promise<{ slug: string
         // Convert ISO timestamps to local time display
         const times = daySlots.map((iso: string) => {
           const d = new Date(iso);
-          const local = d.toLocaleTimeString("fr-CA", {
+          // Use Intl to get local hour/minute in the visitor's timezone
+          const parts = new Intl.DateTimeFormat("en-CA", {
             hour: "2-digit",
             minute: "2-digit",
             timeZone,
             hour12: false,
-          });
-          return { time: local, iso };
+          }).formatToParts(d);
+          const h = parts.find((p) => p.type === "hour")?.value || "00";
+          const m = parts.find((p) => p.type === "minute")?.value || "00";
+          return { time: `${h}:${m}`, iso };
         });
         setSlots(times);
       })
