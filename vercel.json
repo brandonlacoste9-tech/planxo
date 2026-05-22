@@ -1,7 +1,4 @@
 {
   "framework": "nextjs",
-  "installCommand": "npm install --legacy-peer-deps",
-  "rewrites": [
-    { "source": "/", "destination": "/index.html" }
-  ]
+  "installCommand": "npm install --legacy-peer-deps"
 }
