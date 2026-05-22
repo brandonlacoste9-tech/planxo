@@ -32,22 +32,29 @@ export async function GET(request: NextRequest) {
   rangeStart.setHours(0, 0, 0, 0);
   const rangeEnd = endTime ? new Date(endTime) : new Date(rangeStart.getTime() + 7 * 86400000);
 
-  const { data: schedule } = await supabase.from("Schedule").select("*").eq("userId", eventType.userId).eq("isDefault", true).single();
-  if (!schedule) return apiError("No schedule found", 404);
-
-  const { data: intervals } = await supabase.from("Availability").select("*").eq("scheduleId", schedule.id).eq("isActive", true);
-  if (!intervals?.length) return NextResponse.json({ status: "success", data: {} });
-
   const bufB = eventType.bufferBefore || 0;
   const bufA = eventType.bufferAfter || 0;
   const slotLen = eventType.length;
   const interval = 15;
+  const schedulingType = eventType.schedulingType || "individual";
+  let teamMemberIds: string[] = [];
 
-  // Get all local bookings in range
-  const { data: localBookings } = await supabase.from("Booking").select("startTime,endTime").eq("eventTypeId", eventTypeId).neq("status", "cancelled").gte("startTime", rangeStart.toISOString()).lte("startTime", rangeEnd.toISOString());
+  // Resolve team members
+  if (schedulingType === "round_robin" || schedulingType === "collective") {
+    teamMemberIds = eventType.teamMembers || [eventType.userId];
+  } else {
+    teamMemberIds = [eventType.userId];
+  }
 
-  // Get external calendar busy times (Google + Outlook)
-  const externalBusy = await getExternalBusyTimes(eventType.userId, rangeStart, rangeEnd);
+  // Get schedules for all team members
+  const { data: schedules } = await supabase.from("Schedule").select("id,userId").eq("isDefault", true).in("userId", teamMemberIds);
+  if (!schedules?.length) return NextResponse.json({ status: "success", data: {} });
+
+  const scheduleIds = schedules.map((s: any) => s.id);
+  const { data: allIntervals } = await supabase.from("Availability").select("*").in("scheduleId", scheduleIds).eq("isActive", true);
+
+  // Get all local bookings in range for ALL team members
+  const { data: allBookings } = await supabase.from("Booking").select("startTime,endTime,userId").eq("eventTypeId", eventTypeId).neq("status", "cancelled").gte("startTime", rangeStart.toISOString()).lte("startTime", rangeEnd.toISOString());
 
   const slotsByDay: Record<string, string[]> = {};
 
@@ -56,36 +63,65 @@ export async function GET(request: NextRequest) {
   while (cursor < rangeEnd) {
     const dayStr = cursor.toISOString().split("T")[0];
     const dayOfWeek = cursor.getDay();
-    const dayIntervals = intervals.filter((i: any) => i.dayOfWeek === dayOfWeek);
 
-    const daySlots: string[] = [];
-    for (const avail of dayIntervals) {
-      const [sh, sm] = avail.startTime.split(":").map(Number);
-      const [eh, em] = avail.endTime.split(":").map(Number);
-      const startMin = sh * 60 + sm;
-      const endMin = eh * 60 + em;
+    for (const sched of schedules) {
+      const memberIntervals = (allIntervals || []).filter((i: any) => i.scheduleId === sched.id && i.dayOfWeek === dayOfWeek);
+      const memberBookings = (allBookings || []).filter((b: any) => b.userId === sched.userId);
 
-      for (let m = startMin; m + slotLen <= endMin; m += interval) {
-        const h = Math.floor(m / 60), min = m % 60;
-        const slotTime = `${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}`;
-        const slotStart = new Date(`${dayStr}T${slotTime}:00`);
-        const slotEnd = new Date(slotStart.getTime() + slotLen * 60000);
-        const bStart = new Date(slotStart.getTime() - bufB * 60000);
-        const bEnd = new Date(slotEnd.getTime() + bufA * 60000);
+      for (const avail of memberIntervals) {
+        const [sh, sm] = avail.startTime.split(":").map(Number);
+        const [eh, em] = avail.endTime.split(":").map(Number);
+        const startMin = sh * 60 + sm;
+        const endMin = eh * 60 + em;
 
-        // Check local booking conflicts
-        const localConflict = localBookings?.some((b: any) => new Date(b.startTime) < bEnd && new Date(b.endTime) > bStart);
+        for (let m = startMin; m + slotLen <= endMin; m += interval) {
+          const h = Math.floor(m / 60), min = m % 60;
+          const slotTime = `${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}`;
+          const slotStart = new Date(`${dayStr}T${slotTime}:00`);
+          const slotEnd = new Date(slotStart.getTime() + slotLen * 60000);
+          const bStart = new Date(slotStart.getTime() - bufB * 60000);
+          const bEnd = new Date(slotEnd.getTime() + bufA * 60000);
 
-        // Check external calendar conflicts
-        const extConflict = externalBusy.some((busy) => busy.start < bEnd && busy.end > bStart);
+          // Check this member's booking conflicts
+          const conflict = memberBookings.some((b: any) => new Date(b.startTime) < bEnd && new Date(b.endTime) > bStart);
 
-        if (!localConflict && !extConflict) {
-          daySlots.push(slotStart.toISOString());
+          if (!conflict) {
+            const iso = slotStart.toISOString();
+            const key = `${dayStr}|${iso}|${sched.userId}`;
+
+            if (schedulingType === "collective") {
+              // For collective: track which members are free at each slot
+              if (!slotsByDay[dayStr]) slotsByDay[dayStr] = [];
+              const existing = slotsByDay[dayStr].filter(s => s.startsWith(`${iso}|`));
+              if (!existing.length) {
+                slotsByDay[dayStr].push(`${iso}|${sched.userId}`);
+              }
+            } else {
+              // Round-robin / individual: this member has a free slot
+              if (!slotsByDay[dayStr]) slotsByDay[dayStr] = [];
+              if (!slotsByDay[dayStr].includes(iso)) {
+                slotsByDay[dayStr].push(iso);
+              }
+            }
+          }
         }
       }
     }
 
-    if (daySlots.length) slotsByDay[dayStr] = daySlots;
+    // For collective scheduling: filter out slots where not all members are free
+    if (schedulingType === "collective" && slotsByDay[dayStr]) {
+      const membersNeeded = teamMemberIds.length;
+      const slotCounts: Record<string, number> = {};
+      for (const entry of slotsByDay[dayStr]) {
+        const [iso] = entry.split("|");
+        slotCounts[iso] = (slotCounts[iso] || 0) + 1;
+      }
+      slotsByDay[dayStr] = Object.entries(slotCounts)
+        .filter(([_, count]) => count >= membersNeeded)
+        .map(([iso]) => iso);
+      if (!slotsByDay[dayStr].length) delete slotsByDay[dayStr];
+    }
+
     cursor.setDate(cursor.getDate() + 1);
   }
 

@@ -121,11 +121,27 @@ export async function POST(request: NextRequest) {
     const bookingId = crypto.randomUUID();
     const now = new Date().toISOString();
 
+    // ── Round-robin / collective: determine assigned user ──
+    let assignedUserId = userId;
+    const schedulingType = eventType.schedulingType || "individual";
+    if (schedulingType === "round_robin") {
+      const teamIds = eventType.teamMembers || [userId];
+      // Pick member with fewest bookings in recent period
+      const { data: recentBookings } = await supabase
+        .from("Booking").select("userId").eq("eventTypeId", eventTypeId)
+        .neq("status", "cancelled").in("userId", teamIds)
+        .gte("startTime", new Date(start.getTime() - 86400000).toISOString());
+      const load: Record<string, number> = {};
+      for (const id of teamIds) load[id] = 0;
+      for (const b of recentBookings || []) load[b.userId] = (load[b.userId] || 0) + 1;
+      assignedUserId = teamIds.reduce((a, b) => (load[a] ?? 0) <= (load[b] ?? 0) ? a : b);
+    }
+
     const isPaid = eventType.price === 0;
     const bookingStatus = isPaid ? "confirmed" : "pending_payment";
 
     const { data: booking, error } = await supabase.from("Booking").insert({
-      id: bookingId, eventTypeId, userId,
+      id: bookingId, eventTypeId, userId: assignedUserId,
       guestName, guestEmail, guestNotes,
       startTime: start.toISOString(), endTime: end.toISOString(),
       status: bookingStatus, paid: isPaid,
