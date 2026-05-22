@@ -84,12 +84,18 @@ export async function POST(request: NextRequest) {
     const guestNotes = body.metadata?.notes || body.guestNotes || "";
     const guestTz = attendee.timeZone || "UTC";
 
-    // Conflict check
+    // ── Defensive scheduling checks ──
+    const bufBefore = (eventType.bufferBefore || 0) * 60000;
+    const bufAfter = (eventType.bufferAfter || 0) * 60000;
+    const checkStart = new Date(start.getTime() - bufBefore);
+    const checkEnd = new Date(end.getTime() + bufAfter);
+
+    // Conflict check (respects buffer zones)
     if (!body.allowConflicts) {
       const { data: conflicts } = await supabase
         .from("Booking").select("id").eq("eventTypeId", eventTypeId).neq("status", "cancelled")
-        .lt("startTime", end.toISOString()).gt("endTime", start.toISOString()).limit(1);
-      if (conflicts?.length) return apiError("Slot not available — conflict detected", 409);
+        .lt("startTime", checkEnd.toISOString()).gt("endTime", checkStart.toISOString()).limit(1);
+      if (conflicts?.length) return apiError("Ce créneau n'est plus disponible (tampon ou conflit)", 409);
     }
 
     // Daily cap
@@ -100,7 +106,7 @@ export async function POST(request: NextRequest) {
         .eq("eventTypeId", eventTypeId).neq("status", "cancelled")
         .gte("startTime", dayStr + "T00:00:00Z").lte("startTime", dayStr + "T23:59:59Z");
       if (count && count >= eventType.maxPerDay && !body.allowBookingOutOfBounds)
-        return apiError("Daily booking limit reached", 409);
+        return apiError("Limite quotidienne de réservations atteinte", 409);
     }
 
     // Meeting URL
@@ -115,11 +121,14 @@ export async function POST(request: NextRequest) {
     const bookingId = crypto.randomUUID();
     const now = new Date().toISOString();
 
+    const isPaid = eventType.price === 0;
+    const bookingStatus = isPaid ? "confirmed" : "pending_payment";
+
     const { data: booking, error } = await supabase.from("Booking").insert({
       id: bookingId, eventTypeId, userId,
       guestName, guestEmail, guestNotes,
       startTime: start.toISOString(), endTime: end.toISOString(),
-      status: "confirmed", paid: eventType.price === 0,
+      status: bookingStatus, paid: isPaid,
       meetingUrl, updatedAt: now,
     }).select().single();
 

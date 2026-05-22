@@ -31,6 +31,25 @@ export default function BookingPage({ params }: { params: Promise<{ slug: string
   } | null>(null);
   const [timeZone, setTimeZone] = useState("America/Toronto");
   const [showTzPicker, setShowTzPicker] = useState(false);
+  const [paidBookingId, setPaidBookingId] = useState("");
+
+  // Check for post-payment return
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    const bid = q.get("booked");
+    if (bid) {
+      setPaidBookingId(bid);
+      // Fetch the booking to show confirmation
+      fetch(`/api/v2/bookings/${bid}`).then(r => r.json()).then(d => {
+        if (d.data) {
+          const b = d.data;
+          setBooking({ status: "confirmed", guestName: b.attendees?.[0]?.name || "", meetingUrl: b.meetingUrl, start: b.start, end: b.end, eventTypeTitle: "" });
+          // Clean URL
+          window.history.replaceState({}, "", `/${slug}`);
+        }
+      });
+    }
+  }, [slug]);
 
   // Calendar state
   const [currentMonth, setCurrentMonth] = useState(() => {
@@ -107,6 +126,19 @@ export default function BookingPage({ params }: { params: Promise<{ slug: string
     if (res.ok) {
       const json = await res.json();
       const b = json.data;
+      // If payment is required, redirect to Stripe
+      if (b.status === "pending_payment") {
+        const payRes = await fetch(`/api/v2/bookings/${b.id}/pay`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ successUrl: `${window.location.origin}/${slug}?booked=${b.id}`, cancelUrl: window.location.href }),
+        });
+        if (payRes.ok) {
+          const payData = await payRes.json();
+          window.location.href = payData.data.checkoutUrl;
+          return;
+        }
+      }
       setBooking({ status: "confirmed", guestName: b.attendees?.[0]?.name || form.name, meetingUrl: b.meetingUrl, start: b.start, end: b.end, eventTypeTitle: eventType?.title });
     } else { setError("Erreur lors de la réservation."); }
   }
