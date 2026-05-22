@@ -66,10 +66,19 @@ export default function BookingPage({ params }: { params: Promise<{ slug: string
       return;
     }
     setLoadingSlots(true);
-    fetch(`/api/v2/slots?eventTypeId=${eventType.id}&date=${date}&timeZone=${timeZone}`)
+    const startDate = new Date(date + "T00:00:00");
+    const endDate = new Date(startDate.getTime() + 86400000);
+    fetch(`/api/v2/slots?eventTypeSlug=${eventType.slug}&startTime=${startDate.toISOString()}&endTime=${endDate.toISOString()}&timeZone=${timeZone}`)
       .then((r) => r.json())
       .then((data) => {
-        setSlots(data.slots || []);
+        // New format: { status: "success", data: { "2026-05-27": ["ISO..."] } }
+        const daySlots = data.data?.[date] || [];
+        // Convert ISO timestamps to HH:MM
+        const times = daySlots.map((iso: string) => {
+          const d = new Date(iso);
+          return `${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}`;
+        });
+        setSlots(times);
         setSlotInfo(data);
       })
       .finally(() => setLoadingSlots(false));
@@ -79,16 +88,17 @@ export default function BookingPage({ params }: { params: Promise<{ slug: string
     e.preventDefault();
     if (!selectedSlot || !form.name || !form.email) return;
 
+    // Build ISO start time from date + selected slot
+    const startISO = new Date(`${date}T${selectedSlot}:00`).toISOString();
+
     const res = await fetch("/api/v2/bookings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        start: startISO,
         eventTypeId: eventType!.id,
-        guestName: form.name,
-        guestEmail: form.email,
-        guestNotes: form.notes,
-        date,
-        time: selectedSlot,
+        attendee: { name: form.name, email: form.email, timeZone },
+        metadata: { notes: form.notes },
       }),
     });
 
