@@ -70,36 +70,36 @@ export default function DashboardPage() {
 
   return (
     <div style={styles.container}>
-      <style href="dash-nav">{`
-        .dash-nav { display:flex; align-items:center; justify-content:space-between; margin-bottom:36px; }
-        .dash-brand { font-family:'Cal Sans','Inter',sans-serif; font-size:28px; font-weight:700; color:#242424; text-decoration:none; letter-spacing:-0.5px; }
-        .dash-menu { position:relative; }
-        .dash-menu-btn { display:flex; align-items:center; gap:6px; padding:8px 14px; border-radius:8px; border:1px solid rgba(0,0,0,0.08); background:#fff; font-size:14px; font-weight:500; color:#242424; cursor:pointer; font-family:'Inter',sans-serif; transition:all 0.12s; }
-        .dash-menu-btn:hover { background:#f9fafb; border-color:rgba(0,0,0,0.15); }
-        .dash-dropdown { position:absolute; top:100%; right:0; margin-top:6px; background:#fff; border:1px solid rgba(0,0,0,0.1); border-radius:12px; padding:6px; box-shadow:0 4px 20px rgba(0,0,0,0.08); z-index:100; min-width:200px; display:none; }
-        .dash-dropdown-open { display:block; }
-        .dash-drop-item { display:flex; align-items:center; gap:10px; padding:10px 14px; border-radius:8px; border:none; background:none; width:100%; cursor:pointer; font-size:14px; font-weight:500; color:#242424; font-family:'Inter',sans-serif; text-decoration:none; text-align:left; transition:background 0.1s; }
-        .dash-drop-item:hover { background:#f3f4f6; }
-      `}</style>
-      <div className="dash-nav">
+      <style dangerouslySetInnerHTML={{ __html: `
+        .dn-nav { display:flex; align-items:center; justify-content:space-between; margin-bottom:36px; }
+        .dn-brand { font-family:'Cal Sans','Inter',sans-serif; font-size:28px; font-weight:700; color:#242424; text-decoration:none; letter-spacing:-0.5px; }
+        .dn-menu { position:relative; }
+        .dn-menu-btn { display:flex; align-items:center; gap:6px; padding:8px 14px; border-radius:8px; border:1px solid rgba(0,0,0,0.08); background:#fff; font-size:14px; font-weight:500; color:#242424; cursor:pointer; font-family:'Inter',sans-serif; transition:all 0.12s; }
+        .dn-menu-btn:hover { background:#f9fafb; border-color:rgba(0,0,0,0.15); }
+        .dn-dropdown { position:absolute; top:100%; right:0; margin-top:6px; background:#fff; border:1px solid rgba(0,0,0,0.1); border-radius:12px; padding:6px; box-shadow:0 4px 20px rgba(0,0,0,0.08); z-index:100; min-width:200px; display:none; }
+        .dn-open { display:block; }
+        .dn-item { display:flex; align-items:center; gap:10px; padding:10px 14px; border-radius:8px; border:none; background:none; width:100%; cursor:pointer; font-size:14px; font-weight:500; color:#242424; font-family:'Inter',sans-serif; text-decoration:none; text-align:left; transition:background 0.1s; }
+        .dn-item:hover { background:#f3f4f6; }
+      `}} />
+      <div className="dn-nav">
         <div>
-          <a href="/" className="dash-brand">Planxo</a>
+          <a href="/" className="dn-brand">Planxo</a>
           <p style={styles.muted}>Tableau de bord</p>
         </div>
-        <div className="dash-menu">
-          <button className="dash-menu-btn" onClick={() => { const el = document.querySelector('.dash-dropdown'); if(el) el.classList.toggle('dash-dropdown-open'); }}>
+        <div className="dn-menu">
+          <button className="dn-menu-btn" onClick={() => { const el = document.querySelector('.dn-dropdown'); if(el) el.classList.toggle('dn-open'); }}>
             Menu <span style={{fontSize:10,color:"#898989"}}>▼</span>
           </button>
-          <div className="dash-dropdown" onClick={(e) => { (e.target as HTMLElement).closest('.dash-dropdown')?.classList.remove('dash-dropdown-open'); }}>
-            <a href="/dashboard" className="dash-drop-item"><span>📊</span> Tableau de bord</a>
-            <a href="/settings" className="dash-drop-item"><span>⚙️</span> Paramètres</a>
+          <div className="dn-dropdown" onClick={(e) => { (e.target as HTMLElement).closest('.dn-dropdown')?.classList.remove('dn-open'); }}>
+            <a href="/dashboard" className="dn-item"><span>📊</span> Tableau de bord</a>
+            <a href="/settings" className="dn-item"><span>⚙️</span> Paramètres</a>
             <div style={{height:1,background:"rgba(0,0,0,0.06)",margin:"4px 0"}} />
-            <a href="/appel-15min" className="dash-drop-item"><span>📅</span> Appel 15 min</a>
-            <a href="/consultation-30min" className="dash-drop-item"><span>📅</span> Consultation 30 min</a>
-            <a href="/reunion-1h" className="dash-drop-item"><span>📅</span> Réunion 1h</a>
+            <a href="/appel-15min" className="dn-item"><span>📅</span> Appel 15 min</a>
+            <a href="/consultation-30min" className="dn-item"><span>📅</span> Consultation 30 min</a>
+            <a href="/reunion-1h" className="dn-item"><span>📅</span> Réunion 1h</a>
             <div style={{height:1,background:"rgba(0,0,0,0.06)",margin:"4px 0"}} />
-            <a href="/api/v2/me" className="dash-drop-item"><span>🔑</span> API</a>
-            <a href="/" className="dash-drop-item"><span>🏠</span> Accueil</a>
+            <a href="/api/v2/me" className="dn-item"><span>🔑</span> API</a>
+            <a href="/" className="dn-item"><span>🏠</span> Accueil</a>
           </div>
         </div>
       </div>
