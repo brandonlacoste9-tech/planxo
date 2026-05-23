@@ -58,5 +58,33 @@ export async function PUT(request: NextRequest) {
       });
   }
 
+  // Get userId (either from existing or newly created)
+  const { data: profile } = await supabase
+    .from("users").select("id").eq("uuid", user.id).single();
+  const userId = profile?.id;
+
+  // Auto-create default schedule + availability if none exists
+  if (userId) {
+    const { data: existingSched } = await supabase
+      .from("Schedule").select("id").eq("userId", userId).single();
+
+    if (!existingSched) {
+      const { data: sched } = await supabase
+        .from("Schedule")
+        .insert({ userId, name: "Heures de travail", timeZone: timeZone || "America/Toronto" })
+        .select("id").single();
+
+      if (sched) {
+        await supabase.from("Availability").insert({
+          userId,
+          scheduleId: sched.id,
+          days: [0, 1, 2, 3, 4, 5, 6],
+          startTime: "09:00:00",
+          endTime: "17:00:00",
+        });
+      }
+    }
+  }
+
   return NextResponse.json({ status: "success" });
 }
