@@ -32,6 +32,9 @@ export default function DashboardPage() {
   const [showNew, setShowNew] = useState(false);
   const [newET, setNewET] = useState({ title: "", slug: "", length: 30, location: "google-meet", description: "" });
   const [copySuccess, setCopySuccess] = useState("");
+  const [editingSlug, setEditingSlug] = useState<string | null>(null);
+  const [editSlugValue, setEditSlugValue] = useState("");
+  const [shareTarget, setShareTarget] = useState<EventType | null>(null);
   const { theme, colors, setTheme } = useTheme();
   const dark = theme !== "default";
   const tColors = dark ? {
@@ -264,16 +267,40 @@ export default function DashboardPage() {
         <div style={styles.eventGrid}>
           {eventTypes.map((et) => (
             <div key={et.id} style={styles.eventCard}>
-              <div>
+              <div style={{ flex: 1 }}>
                 <h3 style={styles.h3}>{et.title}</h3>
                 <p style={styles.muted}>{et.length} min · {et.location === "google-meet" ? "Google Meet" : et.location === "phone" ? "Téléphone" : et.location === "zoom" ? "Zoom" : "En personne"}</p>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
+                  <span style={{ fontSize: 12, color: "#898989" }}>planxo.ca/</span>
+                  {editingSlug === et.id ? (
+                    <input autoFocus value={editSlugValue}
+                      onChange={e => setEditSlugValue(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
+                      onBlur={async () => {
+                        if (editSlugValue && editSlugValue !== et.slug) {
+                          await fetch(`/api/v2/event-types/${et.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ slug: editSlugValue }) });
+                          setEventTypes(prev => prev.map(e => e.id === et.id ? { ...e, slug: editSlugValue } : e));
+                        }
+                        setEditingSlug(null);
+                      }}
+                      onKeyDown={e => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+                      style={{ fontSize: 13, fontWeight: 600, color: "#242424", border: "1px solid rgba(0,0,0,0.2)", borderRadius: 6, padding: "2px 8px", width: 140, fontFamily: "'Inter',sans-serif", outline: "none" }}
+                    />
+                  ) : (
+                    <span onClick={() => { setEditingSlug(et.id); setEditSlugValue(et.slug); }}
+                      style={{ fontSize: 13, fontWeight: 600, color: "#242424", cursor: "pointer", borderBottom: "1px dashed rgba(0,0,0,0.2)" }}
+                      title="Cliquer pour modifier"
+                    >{et.slug}</span>
+                  )}
+                </div>
               </div>
-              <button
-                style={copySuccess === et.slug ? styles.copiedBtn : styles.copyBtn}
-                onClick={() => copyLink(et.slug)}
-              >
-                {copySuccess === et.slug ? "✓ Copié!" : "Copier le lien"}
-              </button>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <button style={copySuccess === et.slug ? styles.copiedBtn : styles.copyBtn}
+                  onClick={() => copyLink(et.slug)}
+                >{copySuccess === et.slug ? "✓ Copié!" : "Copier"}</button>
+                <button style={{ ...styles.copyBtn, background: "#f9fafb" }}
+                  onClick={() => setShareTarget(et)}
+                >Partager</button>
+              </div>
             </div>
           ))}
           {eventTypes.length === 0 && (
@@ -317,6 +344,75 @@ export default function DashboardPage() {
           )}
         </div>
       </div>
+
+      {/* Share Drawer */}
+      {shareTarget && (
+        <div style={{
+          position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 200,
+          display: "flex", justifyContent: "flex-end",
+        }} onClick={() => setShareTarget(null)}>
+          <div style={{
+            width: "100%", maxWidth: 440, background: "#fff", height: "100%",
+            padding: "32px 28px", overflow: "auto", fontFamily: "'Inter',sans-serif",
+          }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 28 }}>
+              <h2 style={{ fontFamily: "'Cal Sans',sans-serif", fontSize: 22, fontWeight: 700, margin: 0 }}>Partager</h2>
+              <button onClick={() => setShareTarget(null)} style={{ background: "none", border: "none", fontSize: 24, cursor: "pointer", color: "#898989", padding: 0 }}>×</button>
+            </div>
+
+            <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 4 }}>{shareTarget.title}</h3>
+            <p style={{ fontSize: 13, color: "#898989", marginBottom: 24 }}>{shareTarget.length} min</p>
+
+            {/* Copy link */}
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "#898989", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>Lien direct</div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <input readOnly value={`${window.location.origin}/${shareTarget.slug}`}
+                  style={{ flex: 1, padding: "10px 14px", borderRadius: 8, border: "1px solid rgba(0,0,0,0.12)", fontSize: 13, fontFamily: "'Inter',sans-serif", background: "#f9fafb" }}
+                  onFocus={e => e.target.select()}
+                />
+                <button onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/${shareTarget.slug}`); setCopySuccess(shareTarget.slug); setTimeout(() => setCopySuccess(""), 2000); }}
+                  style={{ padding: "10px 18px", borderRadius: 8, background: "#242424", color: "#fff", border: "none", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'Inter',sans-serif", whiteSpace: "nowrap" }}>
+                  {copySuccess === shareTarget.slug ? "✓" : "Copier"}
+                </button>
+              </div>
+            </div>
+
+            {/* Email preview */}
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "#898989", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>Insérer dans un courriel</div>
+              <div style={{ background: "#f9fafb", borderRadius: 10, padding: 16, border: "1px solid rgba(0,0,0,0.06)", fontSize: 13, color: "#242424", lineHeight: 1.7 }}>
+                <p style={{ margin: "0 0 8px", fontWeight: 600 }}>Réservez un {shareTarget.title} avec moi :</p>
+                <p style={{ margin: "0 0 8px" }}>Choisissez un créneau qui vous convient → <a href={`${window.location.origin}/${shareTarget.slug}`} style={{ color: "#0099ff" }}>planxo.ca/{shareTarget.slug}</a></p>
+                <p style={{ margin: 0, color: "#898989", fontSize: 12 }}>— Planxo</p>
+              </div>
+              <button onClick={() => {
+                const text = `Réservez un ${shareTarget.title} avec moi :\n\nChoisissez un créneau qui vous convient → ${window.location.origin}/${shareTarget.slug}\n\n— Planxo`;
+                navigator.clipboard.writeText(text);
+              }}
+                style={{ marginTop: 8, padding: "8px 16px", borderRadius: 8, background: "#f9fafb", border: "1px solid rgba(0,0,0,0.08)", fontSize: 13, fontWeight: 500, cursor: "pointer", fontFamily: "'Inter',sans-serif", color: "#242424" }}>
+                Copier le texte
+              </button>
+            </div>
+
+            {/* Embed */}
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "#898989", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>Intégrer sur votre site</div>
+              <div style={{ background: "#f9fafb", borderRadius: 10, padding: 16, border: "1px solid rgba(0,0,0,0.06)" }}>
+                <code style={{ fontSize: 12, color: "#242424", wordBreak: "break-all", fontFamily: "monospace" }}>
+                  {`<iframe src="${window.location.origin}/${shareTarget.slug}" width="100%" height="600" frameborder="0"></iframe>`}
+                </code>
+              </div>
+              <button onClick={() => {
+                navigator.clipboard.writeText(`<iframe src="${window.location.origin}/${shareTarget.slug}" width="100%" height="600" frameborder="0"></iframe>`);
+              }}
+                style={{ marginTop: 8, padding: "8px 16px", borderRadius: 8, background: "#f9fafb", border: "1px solid rgba(0,0,0,0.08)", fontSize: 13, fontWeight: 500, cursor: "pointer", fontFamily: "'Inter',sans-serif", color: "#242424" }}>
+                Copier le code
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
