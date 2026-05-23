@@ -22,6 +22,23 @@ export default function HomePage() {
   const [pricingAnnual, setPricingAnnual] = useState(false);
   const [lang, setLang] = useState<"fr" | "en">("fr");
   const toggleLang = () => setLang(l => l === "fr" ? "en" : "fr");
+  const [dark, setDark] = useState(false);
+  const toggleDark = () => setDark(d => !d);
+
+  // Cognac dark theme colors
+  const c = dark ? {
+    bg: "#1a1008", bg2: "#241810", text: "#e8d5c4", textMuted: "#a0896e",
+    accent: "#c47f3a", accentHover: "#d4944e", accentText: "#1a1008",
+    border: "rgba(196,127,58,0.15)", cardBg: "#241810",
+    navBg: "rgba(26,16,8,0.95)", ctaBg: "#c47f3a", ctaText: "#1a1008",
+    btnBg: "#c47f3a", btnText: "#1a1008", btnBorder: "rgba(196,127,58,0.3)",
+  } : {
+    bg: "#ffffff", bg2: "#f9fafb", text: "#242424", textMuted: "#898989",
+    accent: "#242424", accentHover: "#1a1a1a", accentText: "#ffffff",
+    border: "rgba(0,0,0,0.08)", cardBg: "#ffffff",
+    navBg: "rgba(255,255,255,0.92)", ctaBg: "#242424", ctaText: "#ffffff",
+    btnBg: "#242424", btnText: "#ffffff", btnBorder: "rgba(0,0,0,0.12)",
+  };
 
   const fr = {
     nav: { solutions: "Solutions", enterprise: "Entreprise", calAi: "Planxo IA", developer: "Développeur", resources: "Ressources", pricing: "Tarifs", signIn: "Connexion", getStarted: "Essayer" },
@@ -58,13 +75,13 @@ export default function HomePage() {
   ];
 
   return (
-    <div style={{ fontFamily: "'Inter', system-ui, -apple-system, sans-serif", background: "#ffffff", color: "#242424", position: "relative", zIndex: 1 }}>
+    <div style={{ fontFamily: "'Inter', system-ui, -apple-system, sans-serif", background: c.bg, color: c.text, position: "relative", zIndex: 1 }}>
       {/* ── NAV ── */}
-      <header style={{ position: "sticky", top: 0, zIndex: 50, background: "rgba(255,255,255,0.92)", backdropFilter: "blur(12px)", borderBottom: "1px solid rgba(0,0,0,0.04)" }}>
+      <header style={{ position: "sticky", top: 0, zIndex: 50, background: c.navBg, backdropFilter: "blur(12px)", borderBottom: `1px solid ${c.border}` }}>
         <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 24px", height: 64, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 32 }}>
             <a href="/" style={{ textDecoration: "none" }}>
-              <span style={{ fontFamily: "'Cal Sans', 'Inter', sans-serif", fontSize: 22, fontWeight: 700, color: "#242424", letterSpacing: "-0.5px" }}>Planxo</span>
+              <span style={{ fontFamily: "'Cal Sans', 'Inter', sans-serif", fontSize: 22, fontWeight: 700, color: c.text, letterSpacing: "-0.5px" }}>Planxo</span>
             </a>
             <nav style={{ display: "flex", gap: 24, fontSize: 14, fontWeight: 500 }}>
               {[{ label: "Solutions", href: "#how" }, { label: "Entreprise", href: "#pricing" }, { label: "Planxo IA", href: "/appel-15min" }, { label: "Développeur", href: "/settings" }, { label: "Tarifs", href: "#pricing" }].map(l => (
@@ -73,13 +90,18 @@ export default function HomePage() {
             </nav>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+            <button onClick={toggleDark} style={{
+              background: "none", border: `1px solid ${c.btnBorder}`, borderRadius: 6,
+              padding: "4px 8px", fontSize: 13, fontWeight: 600, cursor: "pointer",
+              color: c.textMuted, fontFamily: "'Inter', sans-serif",
+            }}>{dark ? "☀️" : "🌙"}</button>
             <button onClick={toggleLang} style={{
-              background: "none", border: "1px solid rgba(0,0,0,0.12)", borderRadius: 6,
-              padding: "4px 10px", fontSize: 12, fontWeight: 600, cursor: "pointer",
-              color: "#898989", fontFamily: "'Inter', sans-serif",
+              background: "none", border: `1px solid ${c.btnBorder}`, borderRadius: 6,
+              padding: "4px 8px", fontSize: 12, fontWeight: 600, cursor: "pointer",
+              color: c.textMuted, fontFamily: "'Inter', sans-serif",
             }}>{lang === "fr" ? "EN" : "FR"}</button>
-            <a href="/login" style={{ color: "#898989", textDecoration: "none", fontSize: 14, fontWeight: 500 }}>{t.nav.signIn}</a>
-            <a href="/login?mode=register" style={{ background: "#242424", color: "#fff", padding: "8px 20px", borderRadius: 9999, fontSize: 14, fontWeight: 600, textDecoration: "none", transition: "all .15s" }}>{t.nav.getStarted}</a>
+            <a href="/login" style={{ color: c.textMuted, textDecoration: "none", fontSize: 14, fontWeight: 500 }}>{t.nav.signIn}</a>
+            <a href="/login?mode=register" style={{ background: c.btnBg, color: c.btnText, padding: "8px 20px", borderRadius: 9999, fontSize: 14, fontWeight: 600, textDecoration: "none", transition: "all .15s" }}>{t.nav.getStarted}</a>
           </div>
         </div>
       </header>
@@ -92,10 +114,10 @@ export default function HomePage() {
       {/* ── HERO ── */}
       <section style={{ maxWidth: 1200, margin: "0 auto", padding: "80px 24px 60px", display: "flex", gap: 60, alignItems: "center" }}>
         <div style={{ flex: 1 }}>
-          <h1 style={{ fontFamily: "'Cal Sans', 'Inter', sans-serif", fontSize: 56, fontWeight: 700, lineHeight: 1.08, letterSpacing: "-0.5px", color: "#242424", marginBottom: 20 }}>
+          <h1 style={{ fontFamily: "'Cal Sans', 'Inter', sans-serif", fontSize: 56, fontWeight: 700, lineHeight: 1.08, letterSpacing: "-0.5px", color: c.text, marginBottom: 20 }}>
             {t.hero.title}
           </h1>
-          <p style={{ fontSize: 18, color: "#898989", lineHeight: 1.6, marginBottom: 32, fontWeight: 400 }}>{t.hero.subtitle}</p>
+          <p style={{ fontSize: 18, color: c.textMuted, lineHeight: 1.6, marginBottom: 32, fontWeight: 400 }}>{t.hero.subtitle}</p>
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
             <SignUpWithGoogle />
             <a href="/login?mode=register" style={{ border: "1px solid rgba(0,0,0,0.12)", color: "#242424", padding: "14px 28px", borderRadius: 9999, fontSize: 15, fontWeight: 600, textDecoration: "none", background: "#fff", transition: "all .15s", boxShadow: "rgba(34,42,53,0.04) 0px 2px 6px 0px" }}>{t.hero.cta2}</a>
