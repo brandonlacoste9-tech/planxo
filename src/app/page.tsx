@@ -46,8 +46,8 @@ export default function HomePage() {
             </nav>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-            <a href="/dashboard" style={{ color: "#898989", textDecoration: "none", fontSize: 14, fontWeight: 500 }}>Connexion</a>
-            <a href="/appel-15min" style={{ background: "#242424", color: "#fff", padding: "8px 20px", borderRadius: 9999, fontSize: 14, fontWeight: 600, textDecoration: "none", transition: "all .15s" }}>Essayer</a>
+            <a href="/login" style={{ color: "#898989", textDecoration: "none", fontSize: 14, fontWeight: 500 }}>Connexion</a>
+            <a href="/login?mode=register" style={{ background: "#242424", color: "#fff", padding: "8px 20px", borderRadius: 9999, fontSize: 14, fontWeight: 600, textDecoration: "none", transition: "all .15s" }}>Essayer</a>
           </div>
         </div>
       </header>
