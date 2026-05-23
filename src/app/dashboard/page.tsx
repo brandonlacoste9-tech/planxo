@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTheme, themes, type ThemeName } from "@/lib/theme";
 
 interface EventType {
   id: string;
@@ -31,6 +32,7 @@ export default function DashboardPage() {
   const [showNew, setShowNew] = useState(false);
   const [newET, setNewET] = useState({ title: "", slug: "", length: 30, location: "google-meet", description: "" });
   const [copySuccess, setCopySuccess] = useState("");
+  const { theme, colors, setTheme } = useTheme();
 
   useEffect(() => {
     fetch("/api/me")
@@ -133,8 +135,19 @@ export default function DashboardPage() {
             <a href="/reunion-1h" className="dn-item"><span>📅</span> Réunion 1h</a>
             <div style={{height:1,background:"rgba(0,0,0,0.06)",margin:"4px 0"}} />
             <a href="/api/v2/me" className="dn-item"><span>🔑</span> API</a>
-            <a href="/" className="dn-item"><span>🏠</span> Accueil</a>
-          </div>
+            <div style={{height:1,background:"rgba(0,0,0,0.06)",margin:"4px 0"}} />
+            <div style={{padding:"8px 14px"}}>
+              <div style={{fontSize:11,fontWeight:600,color:"#898989",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Theme</div>
+              <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                {(Object.entries(themes) as [ThemeName, typeof themes.default][]).map(([key, t]) => (
+                  <button key={key} onClick={() => setTheme(key)} title={t.name}
+                    style={{width:24,height:24,borderRadius:"50%",background:t.accent,border:theme===key?"2px solid white":"2px solid transparent",outline:theme===key?`2px solid ${t.accent}`:"none",cursor:"pointer",padding:0,boxShadow:theme===key?`0 0 0 2px ${t.accent}`:"none"}}
+                  />
+                ))}
+              </div>
+            </div>
+            <div style={{height:1,background:"rgba(0,0,0,0.06)",margin:"4px 0"}} />
+            <a href="/" className="dn-item"><span>🏠</span> Accueil</a>\n          </div>
         </div>
       </div>
 
