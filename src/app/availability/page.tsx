@@ -24,9 +24,9 @@ export default function AvailabilityPage() {
   const defaultIntervals: Interval[] = DAYS.map((_, i) => ({
     id: `avail-${i}`,
     dayOfWeek: i,
-    startTime: (i === 0 || i === 6) ? "" : "09:00",
-    endTime: (i === 0 || i === 6) ? "" : "17:00",
-    isActive: i >= 1 && i <= 5,
+    startTime: "09:00",
+    endTime: "17:00",
+    isActive: true,
   }));
 
   const displayIntervals = intervals.length > 0 ? intervals : defaultIntervals;
