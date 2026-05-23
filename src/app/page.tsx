@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { PlanxoLogo } from "@/components/PlanxoLogo";
 
 function SignUpWithGoogle() {
   const supabase = createClient();
@@ -99,8 +100,8 @@ export default function HomePage() {
       <header style={{ position: "sticky", top: 0, zIndex: 50, background: c.navBg, backdropFilter: "blur(12px)", borderBottom: `1px solid ${c.border}` }}>
         <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 24px", height: 64, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 32 }}>
-            <a href="/" style={{ textDecoration: "none" }}>
-              <span style={{ fontFamily: "'Cal Sans', 'Inter', sans-serif", fontSize: 22, fontWeight: 700, color: c.text, letterSpacing: "-0.5px" }}>Planxo</span>
+            <a href="/" style={{ textDecoration: "none", display: "flex", alignItems: "center" }}>
+              <PlanxoLogo size={26} color={c.text} gold={c.gold} />
             </a>
             <nav style={{ display: "flex", gap: 24, fontSize: 14, fontWeight: 500 }}>
               {[{ label: t.nav.solutions, href: "#how" }, { label: t.nav.enterprise, href: "#pricing" }, { label: t.nav.calAi, href: "/appel-15min" }, { label: t.nav.developer, href: "/settings" }, { label: t.nav.pricing, href: "#pricing" }].map(l => (
@@ -323,7 +324,9 @@ export default function HomePage() {
       <footer style={{ background: c.bg2, padding: "64px 24px 40px", borderTop: `1px solid ${c.border}` }}>
         <div style={{ maxWidth: 1100, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 40 }}>
           <div>
-            <div style={{ fontFamily: "'Cal Sans', sans-serif", fontSize: 20, fontWeight: 700, color: c.text, marginBottom: 12 }}>Planxo</div>
+            <div style={{ marginBottom: 12 }}>
+              <PlanxoLogo size={20} color={c.text} gold={c.gold} />
+            </div>
             <p style={{ fontSize: 13, color: c.textMuted, lineHeight: 1.6 }}>La plateforme de planification #1 au Québec.</p>
           </div>
           {[footer.product, footer.solutions, footer.resources, footer.company].map((col, i) => (
