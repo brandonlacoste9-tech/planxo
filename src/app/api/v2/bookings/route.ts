@@ -63,9 +63,15 @@ export async function POST(request: NextRequest) {
     if (!eventTypeId) return apiError("eventTypeId or eventTypeSlug required", 400);
 
     const { data: eventType } = await supabase.from("EventType").select("*").eq("id", eventTypeId).single();
-    if (!eventType || !eventType.isActive) return apiError("Event type not found", 404);
+    if (!eventType || eventType.hidden) return apiError("Event type not found", 404);
 
     userId = userId || eventType.userId;
+
+    // Map cal.diy column names to friendly aliases
+    eventType.isActive = !eventType.hidden;
+    eventType.bufferBefore = eventType.beforeEventBuffer || 0;
+    eventType.bufferAfter = eventType.afterEventBuffer || 0;
+    eventType.location = Array.isArray(eventType.locations) ? (eventType.locations[0]?.type || "google-meet") : "google-meet";
 
     // Parse start time (ISO 8601 UTC)
     const start = new Date(body.start);
@@ -98,8 +104,9 @@ export async function POST(request: NextRequest) {
       if (conflicts?.length) return apiError("Ce créneau n'est plus disponible (tampon ou conflit)", 409);
     }
 
-    // Daily cap
-    if (eventType.maxPerDay) {
+    // Daily cap — cal.diy uses bookingLimits jsonb, we check from eventType directly
+    const maxPerDay = eventType.maxPerDay;
+    if (maxPerDay) {
       const dayStr = start.toISOString().split("T")[0];
       const { count } = await supabase
         .from("Booking").select("*", { count: "exact", head: true })
@@ -118,7 +125,7 @@ export async function POST(request: NextRequest) {
       else if (locationType === "teams") meetingUrl = `https://teams.microsoft.com/l/meetup-join/${rand()}`;
     }
 
-    const bookingId = crypto.randomUUID();
+    const bookingId = Date.now(); // integer id for cal.diy Booking table
     const now = new Date().toISOString();
 
     // ── Round-robin / collective: determine assigned user ──
