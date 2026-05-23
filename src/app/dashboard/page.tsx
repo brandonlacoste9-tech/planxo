@@ -27,11 +27,18 @@ export default function DashboardPage() {
   const [eventTypes, setEventTypes] = useState<EventType[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
+  const [userName, setUserName] = useState("");
   const [showNew, setShowNew] = useState(false);
   const [newET, setNewET] = useState({ title: "", slug: "", length: 30, location: "google-meet", description: "" });
   const [copySuccess, setCopySuccess] = useState("");
 
   useEffect(() => {
+    fetch("/api/me")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.profile?.name) setUserName(data.profile.name);
+      })
+      .catch(() => {});
     fetch("/api/v2/me")
       .then((r) => r.json())
       .then((user) => {
@@ -111,7 +118,7 @@ export default function DashboardPage() {
       <div className="dn-nav">
         <div>
           <a href="/" className="dn-brand">Planxo</a>
-          <p style={styles.muted}>Tableau de bord</p>
+          <p style={styles.muted}>{userName ? `${userName} — Tableau de bord` : "Tableau de bord"}</p>
         </div>
         <div className="dn-menu">
           <button className="dn-menu-btn" onClick={() => { const el = document.querySelector('.dn-dropdown'); if(el) el.classList.toggle('dn-open'); }}>
