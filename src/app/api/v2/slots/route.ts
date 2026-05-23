@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
 
   // Resolve by slug if needed
   if (!eventTypeId && eventTypeSlug) {
-    const { data: user } = await supabase.from("User").select("id").eq("username", username).single();
+    const { data: user } = await supabase.from("users").select("id").eq("username", username).single();
     if (!user) return apiError("User not found", 404);
     const { data: et } = await supabase.from("EventType").select("id,userId").eq("slug", eventTypeSlug).eq("userId", user.id).single();
     if (!et) return apiError("Event type not found", 404);
@@ -46,12 +46,12 @@ export async function GET(request: NextRequest) {
     teamMemberIds = [eventType.userId];
   }
 
-  // Get schedules for all team members
-  const { data: schedules } = await supabase.from("Schedule").select("id,userId").eq("isDefault", true).in("userId", teamMemberIds);
+  // Get schedules for all team members (userId-based, no isDefault filter)
+  const { data: schedules } = await supabase.from("Schedule").select("id,userId").in("userId", teamMemberIds);
   if (!schedules?.length) return NextResponse.json({ status: "success", data: {} });
 
   const scheduleIds = schedules.map((s: any) => s.id);
-  const { data: allIntervals } = await supabase.from("Availability").select("*").in("scheduleId", scheduleIds).eq("isActive", true);
+  const { data: allIntervals } = await supabase.from("Availability").select("*").in("scheduleId", scheduleIds);
 
   // Get all local bookings in range for ALL team members
   const { data: allBookings } = await supabase.from("Booking").select("startTime,endTime,userId").eq("eventTypeId", eventTypeId).neq("status", "cancelled").gte("startTime", rangeStart.toISOString()).lte("startTime", rangeEnd.toISOString());
@@ -65,12 +65,14 @@ export async function GET(request: NextRequest) {
     const dayOfWeek = cursor.getDay();
 
     for (const sched of schedules) {
-      const memberIntervals = (allIntervals || []).filter((i: any) => i.scheduleId === sched.id && i.dayOfWeek === dayOfWeek);
+      const memberIntervals = (allIntervals || []).filter((i: any) => i.scheduleId === sched.id && Array.isArray(i.days) && i.days.includes(dayOfWeek));
       const memberBookings = (allBookings || []).filter((b: any) => b.userId === sched.userId);
 
       for (const avail of memberIntervals) {
-        const [sh, sm] = avail.startTime.split(":").map(Number);
-        const [eh, em] = avail.endTime.split(":").map(Number);
+        const startTime = typeof avail.startTime === "string" ? avail.startTime.slice(0, 5) : String(avail.startTime);
+        const endTime = typeof avail.endTime === "string" ? avail.endTime.slice(0, 5) : String(avail.endTime);
+        const [sh, sm] = startTime.split(":").map(Number);
+        const [eh, em] = endTime.split(":").map(Number);
         const startMin = sh * 60 + sm;
         const endMin = eh * 60 + em;
 

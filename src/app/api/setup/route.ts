@@ -7,7 +7,7 @@ export async function GET() {
   const results: string[] = [];
 
   // Check if tables exist by trying to select
-  const { error: checkUser } = await supabase.from("User").select("id").limit(1);
+  const { error: checkUser } = await supabase.from("users").select("id").limit(1);
 
   if (checkUser?.message?.includes("does not exist") || checkUser?.message?.includes("schema cache")) {
     // Tables don't exist — need to run migration
@@ -19,7 +19,7 @@ export async function GET() {
   // Tables exist, seed data
   const now = new Date().toISOString();
 
-  const { error: ue } = await supabase.from("User").upsert({
+  const { error: ue } = await supabase.from("users").upsert({
     id: "u1", username: "planxo", name: "Planxo",
     email: "info@planxo.ca", timeZone: "America/Toronto",
     createdAt: now, updatedAt: now,

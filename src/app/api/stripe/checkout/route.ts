@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
       const { data } = await supabase.from("EventType").select("*").eq("id", eventTypeId).single();
       et = data;
     } else if (eventTypeSlug) {
-      const { data: user } = await supabase.from("User").select("id").eq("username", username || "planxo").single();
+      const { data: user } = await supabase.from("users").select("id").eq("username", username || "planxo").single();
       if (user) {
         const { data } = await supabase.from("EventType").select("*").eq("slug", eventTypeSlug).eq("userId", user.id).single();
         et = data;

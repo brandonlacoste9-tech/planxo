@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { data: user } = await supabase.from("User").select("id").eq("email", "info@planxo.ca").single();
+    const { data: user } = await supabase.from("users").select("id").eq("email", "info@planxo.ca").single();
     if (!user) return apiError("User not found", 404);
 
     const id = crypto.randomUUID();

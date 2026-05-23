@@ -12,7 +12,7 @@ export async function PATCH(
     const { id } = await params;
     const body = await request.json();
 
-    const { data: user } = await supabase.from("User").select("id").eq("email", "info@planxo.ca").single();
+    const { data: user } = await supabase.from("users").select("id").eq("email", "info@planxo.ca").single();
     if (!user) return apiError("User not found", 404);
 
     const updates: any = { updatedAt: new Date().toISOString() };
@@ -38,7 +38,7 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const { data: user } = await supabase.from("User").select("id").eq("email", "info@planxo.ca").single();
+    const { data: user } = await supabase.from("users").select("id").eq("email", "info@planxo.ca").single();
     if (!user) return apiError("User not found", 404);
 
     const { error } = await supabase.from("EventType").update({ isActive: false, updatedAt: new Date().toISOString() }).eq("id", id).eq("userId", user.id);

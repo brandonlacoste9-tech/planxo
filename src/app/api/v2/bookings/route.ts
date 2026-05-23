@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
 
     if (!eventTypeId && body.eventTypeSlug) {
       const { data: user } = await supabase
-        .from("User").select("id").eq("username", body.username || "planxo").single();
+        .from("users").select("id").eq("username", body.username || "planxo").single();
       if (!user) return apiError("User not found", 404);
 
       const { data: et } = await supabase
