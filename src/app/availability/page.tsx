@@ -9,6 +9,7 @@ interface Interval { id: string; dayOfWeek: number; startTime: string; endTime: 
 export default function AvailabilityPage() {
   const [intervals, setIntervals] = useState<Interval[]>([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [scheduleName, setScheduleName] = useState("Heures de travail");
 
   useEffect(() => {
@@ -47,6 +48,24 @@ export default function AvailabilityPage() {
         d.dayOfWeek === dayIndex ? { ...d, [field]: value } : d
       );
     });
+  };
+
+  const saveAvailability = async () => {
+    setSaving(true);
+    await fetch("/api/availability", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        scheduleName,
+        intervals: displayIntervals.filter(d => d.isActive).map(d => ({
+          dayOfWeek: d.dayOfWeek,
+          startTime: d.startTime,
+          endTime: d.endTime,
+          isActive: d.isActive,
+        })),
+      }),
+    });
+    setSaving(false);
   };
 
   if (loading) return <div style={s.page}><div style={s.content}><p style={{color:"#898989"}}>Chargement...</p></div></div>;
@@ -89,7 +108,10 @@ export default function AvailabilityPage() {
             </div>
           ))}
         </div>
-        <button style={{marginTop:20,padding:"12px 28px",borderRadius:9999,background:"#242424",color:"#fff",border:"none",fontSize:14,fontWeight:600,cursor:"pointer",fontFamily:"'Inter',sans-serif"}}>💾 Enregistrer</button>
+        <button onClick={saveAvailability} disabled={saving}
+          style={{marginTop:20,padding:"12px 28px",borderRadius:9999,background:saving?"#898989":"#242424",color:"#fff",border:"none",fontSize:14,fontWeight:600,cursor:saving?"default":"pointer",fontFamily:"'Inter',sans-serif"}}>
+          {saving ? "⏳ Enregistrement..." : "💾 Enregistrer"}
+        </button>
       </div>
     </div>
   );
