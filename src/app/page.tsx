@@ -94,6 +94,20 @@ export default function HomePage() {
         .gold-highlight { color: ${c.gold} !important; }
         .gold-border { border-color: ${c.gold} !important; }
         @media (max-width: 900px) { .hero-widget { display: none !important; } }
+        @media (max-width: 768px) {
+          header+div+section { flex-direction: column !important; gap: 32px !important; }
+          header+div+section h1 { font-size: 34px !important; }
+          header+div+section p { font-size: 15px !important; }
+          section { padding-left: 16px !important; padding-right: 16px !important; padding-top: 56px !important; padding-bottom: 56px !important; }
+          h2 { font-size: 28px !important; }
+          nav[style*="display: flex"][style*="gap: 24px"] { display: none !important; }
+          div[style*="grid-template-columns"] { grid-template-columns: 1fr !important; }
+          footer div[style*="grid-template-columns: repeat(auto-fit, minmax(160px, 1fr))"] { grid-template-columns: repeat(2, 1fr) !important; gap: 24px !important; }
+        }
+        @media (max-width: 480px) {
+          header+div+section h1 { font-size: 28px !important; }
+          footer div[style*="grid-template-columns: repeat(auto-fit, minmax(160px, 1fr))"] { grid-template-columns: 1fr !important; }
+        }
       `}} />
 
       {/* ── NAV ── */}
