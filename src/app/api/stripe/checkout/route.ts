@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { supabase } from "@/lib/supabase";
+import { calculateQuebecTaxes } from "@/lib/taxEngine";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "");
 
@@ -31,6 +32,9 @@ export async function POST(request: NextRequest) {
 
     const lengthMin = body.lengthInMinutes || et.length;
     const endDate = new Date(startDate.getTime() + lengthMin * 60000);
+
+    // Calculate Quebec taxes (TPS 5% + TVQ 9.975%)
+    const tax = calculateQuebecTaxes(et.price);
 
     const guestName = attendee?.name || "";
     const guestEmail = attendee?.email || "";
@@ -65,6 +69,22 @@ export async function POST(request: NextRequest) {
           },
           quantity: 1,
         },
+        {
+          price_data: {
+            currency: et.currency || "cad",
+            product_data: { name: "TPS (5%)" },
+            unit_amount: tax.tpsCents,
+          },
+          quantity: 1,
+        },
+        {
+          price_data: {
+            currency: et.currency || "cad",
+            product_data: { name: "TVQ (9.975%)" },
+            unit_amount: tax.tvqCents,
+          },
+          quantity: 1,
+        },
       ],
       metadata: {
         eventTypeId: et.id,
@@ -77,6 +97,10 @@ export async function POST(request: NextRequest) {
         guestTimezone: attendee?.timeZone || "UTC",
         userId: et.userId,
         lengthMinutes: String(lengthMin),
+        basePriceCents: String(et.price),
+        tpsCents: String(tax.tpsCents),
+        tvqCents: String(tax.tvqCents),
+        totalCents: String(tax.totalCents),
       },
       success_url: `${origin}/${et.slug}?booking=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/${et.slug}?booking=cancelled`,

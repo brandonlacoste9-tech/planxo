@@ -52,6 +52,10 @@ export async function POST(request: NextRequest) {
       endTime: meta.endTime,
       status: "confirmed",
       paid: true,
+      basePriceCents: parseInt(meta.basePriceCents || "0"),
+      tpsCents: parseInt(meta.tpsCents || "0"),
+      tvqCents: parseInt(meta.tvqCents || "0"),
+      totalCents: parseInt(meta.totalCents || "0"),
       meetingUrl,
       updatedAt: now,
     });
