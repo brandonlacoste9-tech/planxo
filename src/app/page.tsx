@@ -20,25 +20,35 @@ function SignUpWithGoogle() {
 
 export default function HomePage() {
   const [pricingAnnual, setPricingAnnual] = useState(false);
-  const t = {
+  const [lang, setLang] = useState<"fr" | "en">("fr");
+  const toggleLang = () => setLang(l => l === "fr" ? "en" : "fr");
+
+  const fr = {
     nav: { solutions: "Solutions", enterprise: "Entreprise", calAi: "Planxo IA", developer: "Développeur", resources: "Ressources", pricing: "Tarifs", signIn: "Connexion", getStarted: "Essayer" },
     banner: "Planxo lance la v1.0",
     hero: { title: "La meilleure façon de planifier vos rendez-vous", subtitle: "Un logiciel de planification entièrement personnalisable pour les professionnels, les entreprises et les développeurs qui créent des plateformes de rendez-vous.", cta1: "S'inscrire avec Google", cta2: "S'inscrire avec courriel", noCard: "Aucune carte de crédit requise" },
     trust: "Utilisé par les entreprises québécoises les plus performantes",
-    benefits: [
+  };
+  const en = {
+    nav: { solutions: "Solutions", enterprise: "Enterprise", calAi: "Planxo AI", developer: "Developer", resources: "Resources", pricing: "Pricing", signIn: "Sign In", getStarted: "Try it" },
+    banner: "Planxo launches v1.0",
+    hero: { title: "The best way to schedule your meetings", subtitle: "A fully customizable scheduling software for professionals, businesses, and developers building appointment platforms.", cta1: "Sign up with Google", cta2: "Sign up with email", noCard: "No credit card required" },
+    trust: "Trusted by Quebec's top-performing businesses",
+  };
+  const t = lang === "fr" ? fr : en;
+  const benefits = [
       { icon: "∞", title: "Rendez-vous illimités", desc: "Aucune limite sur le nombre de réservations que vous pouvez recevoir.", color: "#3b82f6" },
       { icon: "🔔", title: "Rappels automatiques", desc: "Réduisez les absences avec des rappels par courriel et SMS.", color: "#f59e0b" },
       { icon: "🎨", title: "Personnalisation complète", desc: "Adaptez votre page de réservation à votre image de marque.", color: "#8b5cf6" },
       { icon: "💳", title: "Paiements intégrés", desc: "Acceptez les paiements directement via Stripe avant le rendez-vous.", color: "#10b981" },
       { icon: "🌍", title: "Fuseau horaire intelligent", desc: "Détection automatique du fuseau horaire de vos clients.", color: "#06b6d4" },
-      { icon: "👥", title: "Lien d'équipe", desc: "Partagez une page commune pour toute votre équipe.", color: "#ec4899" },
-    ],
-    footer: {
-      product: { title: "Produit", links: ["Types de rendez-vous", "Disponibilités", "Rappels", "Paiements", "Intégrations"], hrefs: ["/consultation-30min", "/settings", "/dashboard", "/settings", "/settings"] },
-      solutions: { title: "Solutions", links: ["Professionnels", "Équipes", "Entreprises", "Développeurs", "API"], hrefs: ["/appel-15min", "/reunion-1h", "/consultation-30min", "/dashboard", "/api/v2/me"] },
-      resources: { title: "Ressources", links: ["Documentation", "API Reference", "Status", "Support", "Paramètres"], hrefs: ["/api/v2/me", "https://cal.com/docs/api-reference/v2/introduction", "/dashboard", "mailto:info@planxo.ca", "/settings"] },
-      company: { title: "Entreprise", links: ["À propos", "Carrières", "Contact", "Confidentialité", "Conditions"], hrefs: ["/", "/", "mailto:info@planxo.ca", "/", "/"] },
-    },
+      { icon: "👥", title: "Lien d'équipe", desc: "Partagez une page commune pour toute votre équipe.", color: "#ec4899" }
+    ];
+  const footer = {
+    product: { title: "Produit", links: ["Types de rendez-vous", "Disponibilités", "Rappels", "Paiements", "Intégrations"], hrefs: ["/consultation-30min", "/settings", "/dashboard", "/settings", "/settings"] },
+    solutions: { title: "Solutions", links: ["Professionnels", "Équipes", "Entreprises", "Développeurs", "API"], hrefs: ["/appel-15min", "/reunion-1h", "/consultation-30min", "/dashboard", "/api/v2/me"] },
+    resources: { title: "Ressources", links: ["Documentation", "API Reference", "Status", "Support", "Paramètres"], hrefs: ["/api/v2/me", "https://cal.com/docs/api-reference/v2/introduction", "/dashboard", "mailto:info@planxo.ca", "/settings"] },
+    company: { title: "Entreprise", links: ["À propos", "Carrières", "Contact", "Confidentialité", "Conditions"], hrefs: ["/", "/", "mailto:info@planxo.ca", "/", "/"] },
   };
   const trustLogos = ["Desjardins", "Bombardier", "Québecor", "Coveo", "Lightspeed", "SNC-Lavalin"];
   const plans = [
@@ -63,8 +73,13 @@ export default function HomePage() {
             </nav>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-            <a href="/login" style={{ color: "#898989", textDecoration: "none", fontSize: 14, fontWeight: 500 }}>Connexion</a>
-            <a href="/login?mode=register" style={{ background: "#242424", color: "#fff", padding: "8px 20px", borderRadius: 9999, fontSize: 14, fontWeight: 600, textDecoration: "none", transition: "all .15s" }}>Essayer</a>
+            <button onClick={toggleLang} style={{
+              background: "none", border: "1px solid rgba(0,0,0,0.12)", borderRadius: 6,
+              padding: "4px 10px", fontSize: 12, fontWeight: 600, cursor: "pointer",
+              color: "#898989", fontFamily: "'Inter', sans-serif",
+            }}>{lang === "fr" ? "EN" : "FR"}</button>
+            <a href="/login" style={{ color: "#898989", textDecoration: "none", fontSize: 14, fontWeight: 500 }}>{t.nav.signIn}</a>
+            <a href="/login?mode=register" style={{ background: "#242424", color: "#fff", padding: "8px 20px", borderRadius: 9999, fontSize: 14, fontWeight: 600, textDecoration: "none", transition: "all .15s" }}>{t.nav.getStarted}</a>
           </div>
         </div>
       </header>
@@ -217,7 +232,7 @@ export default function HomePage() {
           <p style={{ fontSize: 12, color: "#898989", fontWeight: 600, textTransform: "uppercase", letterSpacing: 1, textAlign: "center", marginBottom: 8 }}>Avantages</p>
           <h2 style={{ fontFamily: "'Cal Sans', 'Inter', sans-serif", fontSize: 40, fontWeight: 700, lineHeight: 1.15, color: "#242424", textAlign: "center", marginBottom: 48 }}>Pourquoi choisir Planxo</h2>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 20 }}>
-            {t.benefits.map((item, i) => (
+            {benefits.map((item, i) => (
               <div key={i} style={{ background: "#fff", padding: 28, borderRadius: 14, border: "1px solid rgba(0,0,0,0.05)", transition: "all .2s" }} className="card-hover">
                 <div style={{ width: 44, height: 44, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, marginBottom: 14, background: `${item.color}12`, border: `1px solid ${item.color}20` }}>{item.icon}</div>
                 <h3 style={{ fontFamily: "'Cal Sans', 'Inter', sans-serif", fontSize: 17, fontWeight: 700, color: "#242424", marginBottom: 6 }}>{item.title}</h3>
@@ -318,7 +333,7 @@ export default function HomePage() {
             <div style={{ fontFamily: "'Cal Sans', sans-serif", fontSize: 20, fontWeight: 700, color: "#242424", marginBottom: 12 }}>Planxo</div>
             <p style={{ fontSize: 13, color: "#898989", lineHeight: 1.6 }}>La plateforme de planification #1 au Québec.</p>
           </div>
-          {[t.footer.product, t.footer.solutions, t.footer.resources, t.footer.company].map((col, i) => (
+          {[footer.product, footer.solutions, footer.resources, footer.company].map((col, i) => (
             <div key={i}>
               <div style={{ fontSize: 13, fontWeight: 600, color: "#242424", marginBottom: 14, textTransform: "uppercase", letterSpacing: 0.5 }}>{col.title}</div>
               {col.links.map((l, j) => (
