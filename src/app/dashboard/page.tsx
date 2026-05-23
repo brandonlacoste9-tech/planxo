@@ -38,6 +38,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [bookingsLoading, setBookingsLoading] = useState(false);
   const [userName, setUserName] = useState("");
+  const [userSlug, setUserSlug] = useState("");
   const [showNew, setShowNew] = useState(false);
   const [newET, setNewET] = useState({ title: "", slug: "", length: 30, location: "google-meet", description: "" });
   const [copySuccess, setCopySuccess] = useState("");
@@ -99,6 +100,8 @@ export default function DashboardPage() {
       .then((r) => r.json())
       .then((user) => {
         setEventTypes(user.eventTypes || []);
+        if (user.username) setUserSlug(user.username);
+        if (user.name) setUserName(user.name);
       });
     fetchBookings("upcoming").finally(() => setLoading(false));
   }, []);
@@ -146,7 +149,7 @@ export default function DashboardPage() {
   }
 
   function copyLink(slug: string) {
-    const url = `${window.location.origin}/${slug}`;
+    const url = `${window.location.origin}/${userSlug}/${slug}`;
     navigator.clipboard.writeText(url);
     setCopySuccess(slug);
     setTimeout(() => setCopySuccess(""), 2000);
@@ -256,6 +259,60 @@ export default function DashboardPage() {
       {/* Mobile username label */}
       {isMobile && (
         <p style={{ ...styles.muted, marginBottom: 16 }}>{userName ? `${userName} — Tableau de bord` : "Tableau de bord"}</p>
+      )}
+
+      {/* Profile link banner */}
+      {userSlug && (
+        <div style={{
+          display: "flex", alignItems: "center", gap: 12,
+          background: tColors.cardBg,
+          border: `1px solid ${tColors.border}`,
+          borderRadius: 12, padding: "14px 18px", marginBottom: 20,
+          flexWrap: "wrap",
+        }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: tColors.textMuted, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 4 }}>
+              🔗 Mon lien de réservation
+            </div>
+            <div style={{
+              fontSize: 14, fontWeight: 500, color: tColors.text,
+              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+            }}>
+              {typeof window !== "undefined" ? `${window.location.origin}/${userSlug}` : `rdv-qc.vercel.app/${userSlug}`}
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+            <button
+              onClick={() => {
+                const url = `${window.location.origin}/${userSlug}`;
+                navigator.clipboard.writeText(url);
+                setCopySuccess("__profile__");
+                setTimeout(() => setCopySuccess(""), 2000);
+              }}
+              style={{
+                padding: "8px 16px", borderRadius: 8,
+                background: copySuccess === "__profile__" ? "#2a6e3a" : tColors.accent,
+                color: copySuccess === "__profile__" ? "#fff" : (dark ? "#1a1208" : "#fff"),
+                border: "none", fontSize: 13, fontWeight: 600, cursor: "pointer",
+                fontFamily: "Inter, sans-serif", whiteSpace: "nowrap", transition: "background 0.2s",
+              }}
+            >
+              {copySuccess === "__profile__" ? "✓ Copié !" : "Copier le lien"}
+            </button>
+            <a
+              href={`/${userSlug}`}
+              target="_blank"
+              style={{
+                padding: "8px 14px", borderRadius: 8,
+                border: `1px solid ${tColors.border}`,
+                color: tColors.textMuted, fontSize: 13, textDecoration: "none",
+                display: "flex", alignItems: "center", whiteSpace: "nowrap",
+              }}
+            >
+              Voir ↗
+            </a>
+          </div>
+        </div>
       )}
 
       {/* Stats */}
@@ -526,11 +583,11 @@ export default function DashboardPage() {
             <div style={{ marginBottom: 24 }}>
               <div style={{ fontSize: 12, fontWeight: 600, color: "#898989", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>Lien direct</div>
               <div style={{ display: "flex", gap: 8 }}>
-                <input readOnly value={`${window.location.origin}/${shareTarget.slug}`}
+                <input readOnly value={`${window.location.origin}/${userSlug}/${shareTarget.slug}`}
                   style={{ flex: 1, padding: "10px 14px", borderRadius: 8, border: "1px solid rgba(0,0,0,0.12)", fontSize: 13, fontFamily: "'Inter',sans-serif", background: "#f9fafb" }}
                   onFocus={e => e.target.select()}
                 />
-                <button onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/${shareTarget.slug}`); setCopySuccess(shareTarget.slug); setTimeout(() => setCopySuccess(""), 2000); }}
+                <button onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/${userSlug}/${shareTarget.slug}`); setCopySuccess(shareTarget.slug); setTimeout(() => setCopySuccess(""), 2000); }}
                   style={{ padding: "10px 18px", borderRadius: 8, background: "#242424", color: "#fff", border: "none", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'Inter',sans-serif", whiteSpace: "nowrap" }}>
                   {copySuccess === shareTarget.slug ? "✓" : "Copier"}
                 </button>
@@ -542,11 +599,11 @@ export default function DashboardPage() {
               <div style={{ fontSize: 12, fontWeight: 600, color: "#898989", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>Insérer dans un courriel</div>
               <div style={{ background: "#f9fafb", borderRadius: 10, padding: 16, border: "1px solid rgba(0,0,0,0.06)", fontSize: 13, color: "#242424", lineHeight: 1.7 }}>
                 <p style={{ margin: "0 0 8px", fontWeight: 600 }}>Réservez un {shareTarget.title} avec moi :</p>
-                <p style={{ margin: "0 0 8px" }}>Choisissez un créneau qui vous convient → <a href={`${window.location.origin}/${shareTarget.slug}`} style={{ color: "#0099ff" }}>planxo.ca/{shareTarget.slug}</a></p>
+                <p style={{ margin: "0 0 8px" }}>Choisissez un créneau qui vous convient → <a href={`${window.location.origin}/${userSlug}/${shareTarget.slug}`} style={{ color: "#0099ff" }}>rdv-qc.vercel.app/{userSlug}/{shareTarget.slug}</a></p>
                 <p style={{ margin: 0, color: "#898989", fontSize: 12 }}>— Planxo</p>
               </div>
               <button onClick={() => {
-                const text = `Réservez un ${shareTarget.title} avec moi :\n\nChoisissez un créneau qui vous convient → ${window.location.origin}/${shareTarget.slug}\n\n— Planxo`;
+                const text = `Réservez un ${shareTarget.title} avec moi :\n\nChoisissez un créneau qui vous convient → ${window.location.origin}/${userSlug}/${shareTarget.slug}\n\n— Planxo`;
                 navigator.clipboard.writeText(text);
               }}
                 style={{ marginTop: 8, padding: "8px 16px", borderRadius: 8, background: "#f9fafb", border: "1px solid rgba(0,0,0,0.08)", fontSize: 13, fontWeight: 500, cursor: "pointer", fontFamily: "'Inter',sans-serif", color: "#242424" }}>
@@ -559,11 +616,11 @@ export default function DashboardPage() {
               <div style={{ fontSize: 12, fontWeight: 600, color: "#898989", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>Intégrer sur votre site</div>
               <div style={{ background: "#f9fafb", borderRadius: 10, padding: 16, border: "1px solid rgba(0,0,0,0.06)" }}>
                 <code style={{ fontSize: 12, color: "#242424", wordBreak: "break-all", fontFamily: "monospace" }}>
-                  {`<iframe src="${window.location.origin}/${shareTarget.slug}" width="100%" height="600" frameborder="0"></iframe>`}
+                  {`<iframe src="${window.location.origin}/${userSlug}/${shareTarget.slug}" width="100%" height="600" frameborder="0"></iframe>`}
                 </code>
               </div>
               <button onClick={() => {
-                navigator.clipboard.writeText(`<iframe src="${window.location.origin}/${shareTarget.slug}" width="100%" height="600" frameborder="0"></iframe>`);
+                navigator.clipboard.writeText(`<iframe src="${window.location.origin}/${userSlug}/${shareTarget.slug}" width="100%" height="600" frameborder="0"></iframe>`);
               }}
                 style={{ marginTop: 8, padding: "8px 16px", borderRadius: 8, background: "#f9fafb", border: "1px solid rgba(0,0,0,0.08)", fontSize: 13, fontWeight: 500, cursor: "pointer", fontFamily: "'Inter',sans-serif", color: "#242424" }}>
                 Copier le code
