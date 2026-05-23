@@ -189,6 +189,48 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Fire emails (non-blocking — never breaks the booking response)
+    try {
+      const { sendBookingConfirmation, sendBookingNotificationToHost } = await import("@/lib/email");
+
+      // Fetch host user for name + email
+      const { data: hostUser } = await supabase
+        .from("users")
+        .select("id, name, username, email")
+        .eq("id", assignedUserId)
+        .single();
+
+      const hostDisplayName = hostUser?.name || hostUser?.username || "Hôte";
+
+      // Confirmation to guest
+      if (guestEmail) {
+        await sendBookingConfirmation({
+          to: guestEmail,
+          guestName,
+          hostName: hostDisplayName,
+          eventTitle: eventType?.title || "Rendez-vous",
+          startTime: booking.startTime || body.start,
+          endTime: booking.endTime || (end.toISOString()),
+          meetingUrl: booking.location || undefined,
+          uid: booking.uid,
+        });
+      }
+
+      // Notification to host
+      if (hostUser?.email) {
+        await sendBookingNotificationToHost({
+          to: hostUser.email,
+          hostName: hostDisplayName,
+          guestName,
+          eventTitle: eventType?.title || "Rendez-vous",
+          startTime: booking.startTime || body.start,
+          meetingUrl: booking.location || undefined,
+        });
+      }
+    } catch (emailErr) {
+      console.error("Email non-bloquant:", emailErr);
+    }
+
     const response = NextResponse.json({
       status: "success",
       data: formatBooking(booking, eventType),
@@ -207,11 +249,13 @@ export async function GET(request: NextRequest) {
   const eventTypeId = searchParams.get("eventTypeId");
   const status = searchParams.get("status");
   const attendeeEmail = searchParams.get("attendeeEmail");
+  const uid = searchParams.get("uid");
 
   let q = supabase.from("Booking").select("*, eventType:EventType(*)").order("startTime", { ascending: true });
   if (eventTypeId) q = q.eq("eventTypeId", eventTypeId);
   if (status) q = q.eq("status", status);
   if (attendeeEmail) q = q.eq("userPrimaryEmail", attendeeEmail);
+  if (uid) q = q.eq("uid", uid);
 
   const { data: bookings, error } = await q;
   if (error) return apiError(error.message, 500);
@@ -223,6 +267,7 @@ export async function GET(request: NextRequest) {
       uid: b.uid,
       start: b.startTime,
       end: b.endTime,
+      title: b.title || b.eventType?.title || "",
       status: b.status === "accepted" ? "accepted" : b.status,
       attendees: [{ name: resp.name || "", email: resp.email || b.userPrimaryEmail || "" }],
       meetingUrl: b.location || "",
