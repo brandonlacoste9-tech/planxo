@@ -673,7 +673,7 @@ const styles: Record<string, React.CSSProperties> = {
   statCard: {
     padding: 24,
     borderRadius: 12,
-    background: "#f9fafb",
+    background: "#241810",
     textAlign: "center" as const,
   },
   statNumber: { fontSize: 36, fontWeight: 700, color: "#242424", fontFamily: "'Cal Sans', sans-serif" },
