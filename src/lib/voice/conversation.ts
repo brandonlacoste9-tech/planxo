@@ -63,6 +63,13 @@ export class ConversationManager {
     });
   }
 
+  async generateGreeting(): Promise<string> {
+    const response = await this.generateResponse('');
+    this.addToTranscript('assistant', response);
+    this.onResponse?.(response);
+    return response;
+  }
+
   async processUserInput(text: string): Promise<string> {
     this.addToTranscript('user', text);
     
