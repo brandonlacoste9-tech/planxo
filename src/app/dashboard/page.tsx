@@ -43,7 +43,6 @@ export default function DashboardPage() {
   const [copySuccess, setCopySuccess] = useState("");
   const [activeFilter, setActiveFilter] = useState<FilterValue>("upcoming");
   const { colors, setTheme, theme } = useTheme();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
   const fetchData = useCallback(async () => {
@@ -121,19 +120,17 @@ export default function DashboardPage() {
           <div style={{ fontFamily: "'Cal Sans', 'Inter', sans-serif", fontSize: 26, fontWeight: 700 }}>Planxo</div>
           <div style={{ color: colors.textMuted, fontSize: 13 }}>Tableau de bord</div>
         </div>
-
         <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-          {/* Theme Selector */}
           <div style={{ display: "flex", gap: 6 }}>
-            {(Object.keys({ cognac: 1, midnight: 1, ocean: 1, forest: 1 }) as any[]).map((key) => (
+            {(["cognac", "midnight", "ocean", "forest"] as const).map((key) => (
               <button
                 key={key}
                 onClick={() => setTheme(key)}
                 style={{
-                  width: 22,
-                  height: 22,
+                  width: 20,
+                  height: 20,
                   borderRadius: "50%",
-                  background: (key === "cognac" ? "#c47f3a" : key === "midnight" ? "#6c5ce7" : key === "ocean" ? "#2d8cf0" : "#2e7d32"),
+                  background: key === "cognac" ? "#c47f3a" : key === "midnight" ? "#6c5ce7" : key === "ocean" ? "#2d8cf0" : "#2e7d32",
                   border: theme === key ? "2px solid #fff" : "2px solid transparent",
                   cursor: "pointer",
                   padding: 0
@@ -141,9 +138,8 @@ export default function DashboardPage() {
               />
             ))}
           </div>
-
-          <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} style={{ background: colors.cardBg, border: `1px solid ${colors.border}`, padding: "8px 14px", borderRadius: 8, color: colors.text, cursor: "pointer" }}>
-            Menu
+          <button onClick={() => setTheme(theme === "cognac" ? "default" : "cognac")} style={{ background: colors.cardBg, border: `1px solid ${colors.border}`, padding: "8px 14px", borderRadius: 8, color: colors.text, cursor: "pointer", fontSize: 13 }}>
+            Changer le thème
           </button>
         </div>
       </div>
@@ -162,6 +158,9 @@ export default function DashboardPage() {
       )}
 
       {/* Stats */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16, marginBottom: 48 }}>
+        <div style={{ background: colors.cardBg, border: `1px solid ${colors.border}`, borderRadius: 16, padding: 26, textAlign: "center" }}>
+          <div style={{ fontSize: 40, fontWeight: 700 }}>{eventTypes.length}</div>
           <div style={{ color: colors.textMuted, marginTop: 4, fontSize: 14 }}>Types de rendez-vous</div>
         </div>
         <div style={{ background: colors.cardBg, border: `1px solid ${colors.border}`, borderRadius: 16, padding: 26, textAlign: "center" }}>
@@ -171,6 +170,27 @@ export default function DashboardPage() {
         <div style={{ background: colors.cardBg, border: `1px solid ${colors.border}`, borderRadius: 16, padding: 26, textAlign: "center" }}>
           <div style={{ fontSize: 40, fontWeight: 700 }}>{bookings.filter(b => b.status === "confirmed").length}</div>
           <div style={{ color: colors.textMuted, marginTop: 4, fontSize: 14 }}>Confirmés</div>
+        </div>
+      </div>
+
+      {/* Calendars */}
+      <div style={{ marginBottom: 48 }}>
+        <h2 style={{ fontSize: 19, fontWeight: 600, marginBottom: 16, color: colors.text }}>Calendars</h2>
+        <div style={{ background: colors.cardBg, border: `1px solid ${colors.border}`, borderRadius: 14, padding: 22 }}>
+          <p style={{ color: colors.textMuted, marginBottom: 16, fontSize: 14 }}>
+            Connect Google or Outlook to automatically sync your downtime.
+          </p>
+          <div style={{ display: "flex", gap: 12 }}>
+            <a href="/api/auth/google" style={{ background: "#fff", color: "#000", padding: "10px 20px", borderRadius: 10, textDecoration: "none", fontWeight: 600, border: `1px solid ${colors.border}` }}>
+              Connect Google
+            </a>
+            <a href="/api/auth/outlook/connect" style={{ background: "#0078D4", color: "#fff", padding: "10px 20px", borderRadius: 10, textDecoration: "none", fontWeight: 600 }}>
+              Connect Outlook
+            </a>
+          </div>
+          <div style={{ marginTop: 14 }}>
+            <a href="/availability" style={{ color: colors.accent, fontSize: 13 }}>Configure your availability →</a>
+          </div>
         </div>
       </div>
 
@@ -184,8 +204,8 @@ export default function DashboardPage() {
         </div>
 
         {showNew && (
-          <form onSubmit={createEventType} style={{ background: colors.cardBg, border: `1px solid ${colors.border}`, padding: 22, borderRadius: 14, marginBottom: 20 }}>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 120px", gap: 12 }}>
+          <form onSubmit={createEventType} style={{ background: colors.cardBg, border: `1px solid ${colors.border}`, padding: 20, borderRadius: 14, marginBottom: 20 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 100px", gap: 12 }}>
               <input placeholder="Titre" value={newET.title} onChange={e => setNewET({ ...newET, title: e.target.value })} required style={{ padding: 11, borderRadius: 8, border: `1px solid ${colors.border}`, background: colors.bg, color: colors.text }} />
               <input placeholder="Slug" value={newET.slug} onChange={e => setNewET({ ...newET, slug: e.target.value })} required style={{ padding: 11, borderRadius: 8, border: `1px solid ${colors.border}`, background: colors.bg, color: colors.text }} />
               <button type="submit" style={{ background: colors.accent, color: "#1a1008", border: "none", borderRadius: 8, fontWeight: 600 }}>Créer</button>
@@ -215,7 +235,7 @@ export default function DashboardPage() {
       {/* Bookings */}
       <div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-          <h2 style={{ fontSize: 19, fontWeight: 600, margin: 0 }}>Rendez-vous</h2>
+          <h2 style={{ fontSize: 19, fontWeight: 600, margin: 0, color: colors.text }}>Rendez-vous</h2>
         </div>
 
         <div style={{ display: "flex", gap: 8, marginBottom: 18 }}>
