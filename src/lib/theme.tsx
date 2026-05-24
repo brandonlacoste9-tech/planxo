@@ -30,9 +30,9 @@ export const themes: Record<ThemeName, ThemeColors> = {
   },
   cognac: {
     name: "Cognac",
-    bg: "#0f0a06", bgSecondary: "#241810",
+    bg: "#1a140f", bgSecondary: "#241810",
     text: "#e8d5c4", textMuted: "#a0896e",
-    accent: "#e07b3a", accentHover: "#d4944e", accentText: "#ffffff",
+    accent: "#c47f3a", accentHover: "#d4944e", accentText: "#ffffff",
     border: "rgba(196,127,58,0.15)", cardBg: "#1f160f",
     navBg: "rgba(26,16,8,0.95)", ctaBg: "#c47f3a", ctaText: "#1a1008",
   },
