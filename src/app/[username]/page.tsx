@@ -98,12 +98,16 @@ export default async function UserHubPage({ params }: { params: Promise<{ userna
       {/* Event type grid */}
       <div style={{ flex: 1, maxWidth: 680, width: "100%", margin: "0 auto", padding: "40px 20px 32px" }}>
         <h2 style={{
-          fontFamily: "'Cal Sans','Inter',sans-serif", fontSize: 16, fontWeight: 600,
-          color: "#c8a96e", textTransform: "uppercase", letterSpacing: "0.08em",
-          marginBottom: 20,
+          fontFamily: "'Cal Sans','Inter',sans-serif", fontSize: 22, fontWeight: 700,
+          color: "#f5ead8", marginBottom: 4,
         }}>
-          Choisir un rendez-vous
+          Disponibilités de {displayName}
         </h2>
+        <p style={{
+          fontSize: 14, color: "#a08060", marginBottom: 24,
+        }}>
+          Sélectionnez un type de rendez-vous pour voir les créneaux disponibles
+        </p>
 
         {(!events || events.length === 0) ? (
           /* Empty state */

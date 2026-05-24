@@ -158,7 +158,8 @@ export default function BookingPage({ params }: { params: Promise<{ username: st
         <div style={{ flex: isMobile ? "unset" : "0 0 260px", width: isMobile ? "100%" : undefined }}>
           <div style={{ width:48,height:48,borderRadius:"50%",background:"#242424",color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,fontWeight:700,marginBottom:12 }}>{eventType.user.name[0]}</div>
           <div style={{ fontSize: isMobile ? 14 : 15,fontWeight:600,marginBottom:4 }}>{eventType.user.name}</div>
-          <h1 style={{ fontFamily:"'Cal Sans',sans-serif",fontSize: isMobile ? 18 : 22,fontWeight:700,margin:"0 0 12px" }}>{eventType.title}</h1>
+          <h1 style={{ fontFamily:"'Cal Sans',sans-serif",fontSize: isMobile ? 18 : 22,fontWeight:700,margin:"0 0 4px" }}>{eventType.title}</h1>
+          <p style={{ fontSize: 13, color: "#898989", marginBottom: 12 }}>avec {eventType.user.name}</p>
           {eventType && (
             <div style={{ display:'flex', gap:8, marginBottom:16, flexWrap:'wrap' }}>
               {[15, 30, 45, 60].map(d => (
