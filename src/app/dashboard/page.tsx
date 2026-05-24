@@ -162,6 +162,23 @@ export default function DashboardPage() {
       )}
 
       {/* Stats */}
+      {/* Calendars */}
+      <div style={{ marginBottom: 48 }}>
+        <h2 style={{ fontSize: 19, fontWeight: 600, marginBottom: 16, color: colors.text }}>Calendars</h2>
+        <div style={{ background: colors.cardBg, border: `1px solid ${colors.border}`, borderRadius: 14, padding: 20 }}>
+          <p style={{ color: colors.textMuted, marginBottom: 16, fontSize: 14 }}>
+            Connect Google or Outlook to automatically sync your downtime.
+          </p>
+          <div style={{ display: "flex", gap: 10 }}>
+            <button style={{ background: "#fff", color: "#000", padding: "9px 18px", borderRadius: 8, border: `1px solid ${colors.border}`, cursor: "pointer" }}>
+              Google
+            </button>
+            <button style={{ background: "#0078D4", color: "#fff", padding: "9px 18px", borderRadius: 8, border: "none", cursor: "pointer" }}>
+              Outlook
+            </button>
+          </div>
+        </div>
+      </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16, marginBottom: 48 }}>
         <div style={{ background: colors.cardBg, border: `1px solid ${colors.border}`, borderRadius: 16, padding: 26, textAlign: "center" }}>
           <div style={{ fontSize: 40, fontWeight: 700 }}>{eventTypes.length}</div>
