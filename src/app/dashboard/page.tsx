@@ -162,27 +162,6 @@ export default function DashboardPage() {
       )}
 
       {/* Stats */}
-      {/* Calendars */}
-      <div style={{ marginBottom: 48 }}>
-        <h2 style={{ fontSize: 19, fontWeight: 600, marginBottom: 16, color: colors.text }}>Calendars</h2>
-        <div style={{ background: colors.cardBg, border: `1px solid ${colors.border}`, borderRadius: 14, padding: 22 }}>
-          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-            <a href="/api/auth/google" style={{ background: "#fff", color: "#000", padding: "10px 20px", borderRadius: 10, textDecoration: "none", fontWeight: 600, border: `1px solid ${colors.border}` }}>
-              Connect Google
-            </a>
-            <a href="/api/auth/outlook/connect" style={{ background: "#0078D4", color: "#fff", padding: "10px 20px", borderRadius: 10, textDecoration: "none", fontWeight: 600 }}>
-              Connect Outlook
-            </a>
-          </div>
-          <div style={{ marginTop: 16 }}>
-            <a href="/availability" style={{ color: colors.accent, fontSize: 13 }}>Configure your availability →</a>
-          </div>
-        </div>
-      </div>
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16, marginBottom: 48 }}>
-        <div style={{ background: colors.cardBg, border: `1px solid ${colors.border}`, borderRadius: 16, padding: 26, textAlign: "center" }}>
-          <div style={{ fontSize: 40, fontWeight: 700 }}>{eventTypes.length}</div>
           <div style={{ color: colors.textMuted, marginTop: 4, fontSize: 14 }}>Types de rendez-vous</div>
         </div>
         <div style={{ background: colors.cardBg, border: `1px solid ${colors.border}`, borderRadius: 16, padding: 26, textAlign: "center" }}>
