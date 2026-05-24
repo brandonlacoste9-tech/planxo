@@ -32,14 +32,7 @@ export async function POST(req: NextRequest) {
     // Get all active workflows
     const { data: workflows, error: workflowError } = await supabase
       .from('voice_workflows')
-      .select(`
-        *,
-        users:user_id (
-          id,
-          email,
-          raw_user_meta_data
-        )
-      `)
+      .select('*')
       .eq('is_active', true);
 
     if (workflowError) {
@@ -52,11 +45,18 @@ export async function POST(req: NextRequest) {
     // Process each workflow
     for (const workflow of workflows || []) {
       try {
-        const user = workflow.users;
-        if (!user) continue;
+        // Get user info separately
+        const { data: userData } = await supabase
+          .from('users')
+          .select('id, email, raw_user_meta_data')
+          .eq('id', workflow.user_id)
+          .single();
+
+        if (!userData) continue;
 
         // Get professional name from user metadata
-        const professionalName = user.raw_user_meta_data?.name || user.raw_user_meta_data?.full_name || 'Planxo';
+        const userMeta = userData.raw_user_meta_data || {};
+        const professionalName = userMeta.name || userMeta.full_name || 'Planxo';
 
         // Find bookings that match this workflow's criteria
         const scheduledCount = await scheduleWorkflowExecutions(
@@ -95,29 +95,12 @@ async function scheduleWorkflowExecutions(workflow: any, professionalName: strin
   let scheduledCount = 0;
   const now = new Date();
   
-  // Calculate the time window for this workflow
-  // trigger_timing is in minutes: positive = before event, negative = after
   const triggerMinutes = workflow.trigger_timing;
   
   // Find bookings in the relevant time window
-  // For reminders: bookings happening in the next X hours
-  // For follow-ups: bookings that ended X minutes ago
-  
   let bookingQuery = supabase
     .from('Booking')
-    .select(`
-      *,
-      user:attendeeId (
-        id,
-        email,
-        name
-      ),
-      eventType:eventTypeId (
-        id,
-        title,
-        duration
-      )
-    `)
+    .select('*')
     .eq('userId', workflow.user_id);
 
   // Apply event type filter if specified
@@ -166,24 +149,22 @@ async function scheduleWorkflowExecutions(workflow: any, professionalName: strin
         .maybeSingle();
 
       if (existingExec) {
-        continue; // Already scheduled or executed
+        continue;
       }
 
       // Calculate when to make the call
       let scheduledFor: Date;
       if (triggerMinutes > 0) {
-        // Reminder: X minutes before the booking
         const bookingStart = new Date(booking.startTime);
         scheduledFor = new Date(bookingStart.getTime() - triggerMinutes * 60000);
       } else {
-        // Follow-up: X minutes after booking ends
         const bookingEnd = new Date(booking.endTime);
         scheduledFor = new Date(bookingEnd.getTime() + Math.abs(triggerMinutes) * 60000);
       }
 
       // Don't schedule if it's in the past
       if (scheduledFor < now) {
-        scheduledFor = new Date(now.getTime() + 60000); // Schedule 1 minute from now
+        scheduledFor = new Date(now.getTime() + 60000);
       }
 
       // Create execution record
@@ -217,31 +198,7 @@ async function executePendingCalls(): Promise<number> {
   // Get pending executions that are due
   const { data: pendingExecutions, error } = await supabase
     .from('voice_workflow_executions')
-    .select(`
-      *,
-      workflow:workflow_id (
-        *,
-        users:user_id (
-          id,
-          email,
-          raw_user_meta_data
-        )
-      ),
-      booking:booking_id (
-        *,
-        user:attendeeId (
-          id,
-          email,
-          name,
-          phone
-        ),
-        eventType:eventTypeId (
-          id,
-          title,
-          duration
-        )
-      )
-    `)
+    .select('*')
     .eq('status', 'pending')
     .lte('scheduled_for', now.toISOString())
     .limit(50);
@@ -254,8 +211,19 @@ async function executePendingCalls(): Promise<number> {
   // Execute each pending call
   for (const execution of pendingExecutions || []) {
     try {
-      const workflow = execution.workflow;
-      const booking = execution.booking;
+      // Get workflow details
+      const { data: workflow } = await supabase
+        .from('voice_workflows')
+        .select('*')
+        .eq('id', execution.workflow_id)
+        .single();
+
+      // Get booking details
+      const { data: booking } = await supabase
+        .from('Booking')
+        .select('*')
+        .eq('id', execution.booking_id)
+        .single();
       
       if (!workflow || !booking) {
         await markExecutionFailed(execution.id, 'Missing workflow or booking data');
@@ -270,27 +238,42 @@ async function executePendingCalls(): Promise<number> {
         .single();
 
       const balance = creditData?.balance || 0;
-      if (balance < 15) { // Minimum 15 cents ($0.15)
+      if (balance < 15) {
         await markExecutionFailed(execution.id, 'Insufficient credits');
         continue;
       }
 
       // Get attendee phone
-      const attendee = booking.user;
-      const attendeePhone = attendee?.phone || booking.attendeePhone;
+      const attendeePhone = booking.attendeePhone;
       
       if (!attendeePhone) {
         await markExecutionFailed(execution.id, 'No phone number for attendee');
         continue;
       }
 
+      // Get user info for professional name
+      const { data: userData } = await supabase
+        .from('users')
+        .select('raw_user_meta_data')
+        .eq('id', workflow.user_id)
+        .single();
+
+      const userMeta = userData?.raw_user_meta_data || {};
+      const professionalName = userMeta.name || userMeta.full_name || 'Planxo';
+
+      // Get event type info
+      const { data: eventType } = await supabase
+        .from('EventType')
+        .select('title')
+        .eq('id', booking.eventTypeId)
+        .single();
+
       // Prepare message with variables replaced
-      const professionalName = workflow.users?.raw_user_meta_data?.name || 'Planxo';
       const message = replaceMessageVariables(
         workflow.message_template,
         {
-          attendeeName: attendee?.name || 'there',
-          eventTitle: booking.eventType?.title || 'appointment',
+          attendeeName: booking.attendeeName || 'there',
+          eventTitle: eventType?.title || 'appointment',
           eventDate: formatDate(booking.startTime),
           eventTime: formatTime(booking.startTime),
           professionalName: professionalName
@@ -416,7 +399,6 @@ async function triggerOutboundCall(params: {
 
 // GET endpoint for manual triggering/testing
 export async function GET(req: NextRequest) {
-  // Allow manual execution with secret
   const url = new URL(req.url);
   const secret = url.searchParams.get('secret');
   
@@ -424,6 +406,5 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  // Forward to POST handler
   return POST(req);
 }
