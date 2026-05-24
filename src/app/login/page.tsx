@@ -1,11 +1,10 @@
 "use client";
 
 import { useState, Suspense } from "react";
-import { useTheme } from "@/lib/theme";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useTheme } from "@/lib/theme";
 
-const { colors } = useTheme();
 function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -16,6 +15,7 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirect = searchParams.get("redirect") || "/dashboard";
+  const { colors } = useTheme();
 
   const supabase = createClient();
 
@@ -57,7 +57,7 @@ function LoginForm() {
     }}>
       <div style={{
         background: colors.cardBg || "#fff", borderRadius: 16, padding: "40px 36px", width: "100%", maxWidth: 400,
-        border: "1px solid rgba(0,0,0,0.06)", boxShadow: "0 4px 24px rgba(0,0,0,0.04)",
+        border: `1px solid ${colors.border}`, boxShadow: "0 4px 24px rgba(0,0,0,0.04)",
       }}>
         <a href="/" style={{ textDecoration: "none" }}>
           <h1 style={{
@@ -73,16 +73,13 @@ function LoginForm() {
           <div style={{
             background: "#ecfdf5", color: "#059669", padding: "12px 16px", borderRadius: 8,
             fontSize: 13, marginBottom: 16, textAlign: "center",
-        <p style={{ textAlign: "center", fontSize: 11, color: colors.textMuted, marginTop: 32, letterSpacing: "0.5px" }}>
-          Fait au Québec • Pour le Québec
-        </p>
           }}>{message}</div>
         )}
 
         <button
           onClick={handleGoogleLogin}
           style={{
-            width: "100%", padding: "12px", borderRadius: 8, border: "1px solid rgba(0,0,0,0.12)",
+            width: "100%", padding: "12px", borderRadius: 8, border: `1px solid ${colors.border}`,
             background: colors.cardBg || "#fff", fontSize: 14, fontWeight: 500, cursor: "pointer",
             display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
             fontFamily: "'Inter', sans-serif", marginBottom: 16, transition: "background .15s",
@@ -94,36 +91,51 @@ function LoginForm() {
         </button>
 
         <div style={{
-          display: "flex", alignItems: "center", gap: 12, marginBottom: 16, color: "#d1d5db",
+          display: "flex", alignItems: "center", gap: 12, marginBottom: 16, color: colors.textMuted,
         }}>
-          <div style={{ flex: 1, height: 1, background: "rgba(0,0,0,0.06)" }} />
+          <div style={{ flex: 1, height: 1, background: colors.border }} />
           <span style={{ fontSize: 12, color: colors.textMuted }}>ou</span>
-          <div style={{ flex: 1, height: 1, background: "rgba(0,0,0,0.06)" }} />
-        <p style={{ textAlign: "center", fontSize: 11, color: colors.textMuted, marginTop: 32, letterSpacing: "0.5px" }}>
-          Fait au Québec • Pour le Québec
-        </p>
+          <div style={{ flex: 1, height: 1, background: colors.border }} />
         </div>
 
         <form onSubmit={handleEmailLogin}>
           <input
-            type="email" placeholder="Courriel" value={email}
-            onChange={(e) => setEmail(e.target.value)} required
-            style={inputStyle}
+            type="email"
+            placeholder="Courriel"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            style={{
+              width: "100%", boxSizing: "border-box", padding: "12px 14px", borderRadius: 8,
+              border: `1px solid ${colors.border}`, fontSize: 14, fontFamily: "'Inter', sans-serif",
+              outline: "none", marginBottom: 10, background: colors.bg, color: colors.text,
+            }}
           />
           <input
-            type="password" placeholder="Mot de passe" value={password}
-            onChange={(e) => setPassword(e.target.value)} required minLength={6}
-            style={inputStyle}
+            type="password"
+            placeholder="Mot de passe"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            style={{
+              width: "100%", boxSizing: "border-box", padding: "12px 14px", borderRadius: 8,
+              border: `1px solid ${colors.border}`, fontSize: 14, fontFamily: "'Inter', sans-serif",
+              outline: "none", marginBottom: 16, background: colors.bg, color: colors.text,
+            }}
           />
-          {error && (
-            <p style={{ color: "#dc2626", fontSize: 13, marginBottom: 12 }}>{error}</p>
-          )}
-          <button type="submit" disabled={loading} style={{
-            width: "100%", padding: "12px", borderRadius: 8, border: "none",
-            background: "#242424", color: "#fff", fontSize: 14, fontWeight: 600,
-            cursor: "pointer", fontFamily: "'Inter', sans-serif", marginTop: 4,
-            opacity: loading ? 0.7 : 1, transition: "all .15s",
-          }}>
+
+          {error && <p style={{ color: "#e74c3c", fontSize: 13, marginBottom: 12 }}>{error}</p>}
+
+          <button
+            type="submit"
+            disabled={loading}
+            style={{
+              width: "100%", padding: "14px", borderRadius: 8, border: "none",
+              background: colors.accent, color: colors.accentText || "#fff", fontSize: 15, fontWeight: 600,
+              cursor: "pointer", fontFamily: "'Inter', sans-serif",
+              opacity: loading ? 0.7 : 1, transition: "all .15s",
+            }}
+          >
             {loading ? "Chargement..." : mode === "login" ? "Se connecter" : "S'inscrire"}
           </button>
         </form>
@@ -141,14 +153,12 @@ function LoginForm() {
             {mode === "login" ? "S'inscrire" : "Se connecter"}
           </button>
         </p>
+
         <p style={{ textAlign: "center", fontSize: 11, color: colors.textMuted, marginTop: 32, letterSpacing: "0.5px" }}>
           Fait au Québec • Pour le Québec
         </p>
       </div>
       <style dangerouslySetInnerHTML={{ __html: `.google-btn:hover { background: #f9fafb; border-color: rgba(0,0,0,0.2); }` }} />
-        <p style={{ textAlign: "center", fontSize: 11, color: colors.textMuted, marginTop: 32, letterSpacing: "0.5px" }}>
-          Fait au Québec • Pour le Québec
-        </p>
     </div>
   );
 }
@@ -158,18 +168,9 @@ export default function LoginPage() {
     <Suspense fallback={
       <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"#f9fafb"}}>
         <p style={{fontSize:14,color:"#898989"}}>Chargement...</p>
-        <p style={{ textAlign: "center", fontSize: 11, color: colors.textMuted, marginTop: 32, letterSpacing: "0.5px" }}>
-          Fait au Québec • Pour le Québec
-        </p>
       </div>
     }>
       <LoginForm />
     </Suspense>
   );
 }
-
-const inputStyle: React.CSSProperties = {
-  width: "100%", boxSizing: "border-box", padding: "12px 14px", borderRadius: 8,
-  border: "1px solid rgba(0,0,0,0.12)", fontSize: 14, fontFamily: "'Inter', sans-serif",
-  outline: "none", marginBottom: 10,
-};
