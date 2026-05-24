@@ -608,8 +608,8 @@ const styles: Record<string, React.CSSProperties> = {
   section: { marginBottom: 48 },
   sectionHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
   primaryBtn: {
-    background: "#242424",
-    color: "#fff",
+    background: colors.accent,
+    color: "#1a1008",
     padding: "10px 20px",
     borderRadius: 8,
     fontSize: 14,
