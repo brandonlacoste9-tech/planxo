@@ -91,7 +91,7 @@ const ThemeContext = createContext<ThemeContextType>({
 });
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<ThemeName>("default");
+  const [theme, setThemeState] = useState<ThemeName>("cognac");
 
   useEffect(() => {
     const saved = localStorage.getItem("planxo-theme") as ThemeName;
