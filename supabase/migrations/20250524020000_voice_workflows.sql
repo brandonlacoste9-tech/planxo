@@ -129,3 +129,15 @@ ON CONFLICT DO NOTHING;
 COMMENT ON TABLE voice_workflows IS 'User-defined workflows for automated AI phone calls';
 COMMENT ON COLUMN voice_workflows.trigger_timing IS 'Minutes: positive = before event, negative = after event';
 COMMENT ON COLUMN voice_workflows.message_template IS 'Message with variables: {{attendeeName}}, {{eventTitle}}, {{eventDate}}, {{eventTime}}, {{professionalName}}';
+
+-- RPC function to add credits atomically
+CREATE OR REPLACE FUNCTION add_voice_credits(p_user_id TEXT, p_amount INTEGER)
+RETURNS VOID AS $$
+BEGIN
+    UPDATE voice_credits
+    SET balance = balance + p_amount,
+        lifetime_credits = lifetime_credits + p_amount,
+        updated_at = NOW()
+    WHERE user_id = p_user_id;
+END;
+$$ LANGUAGE plpgsql;

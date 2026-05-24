@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
-import { CREDIT_PACKAGES } from '../../../../lib/voice/credits';
+
+const CREDIT_PACKAGES = [
+  { id: 'starter', credits: 1000, price: 1000, name: 'Starter', description: '~66 minutes of calls' },
+  { id: 'professional', credits: 2750, price: 2500, name: 'Professional', description: '~183 minutes of calls' },
+  { id: 'business', credits: 6000, price: 5000, name: 'Business', description: '~400 minutes of calls' }
+];
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2024-12-18.acacia' as any,
