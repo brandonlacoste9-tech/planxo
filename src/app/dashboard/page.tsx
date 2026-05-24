@@ -202,6 +202,7 @@ export default function DashboardPage() {
           padding: "8px 0", marginBottom: 20,
         }}>
           <a href="/dashboard" style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 16px", fontSize: 14, fontWeight: 500, color: "#242424", textDecoration: "none" }}>📊 Tableau de bord</a>
+          <a href="/dashboard/voice" style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 16px", fontSize: 14, fontWeight: 500, color: "#242424", textDecoration: "none" }}>🤖 Planxo AI</a>
           <a href="/availability" style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 16px", fontSize: 14, fontWeight: 500, color: "#242424", textDecoration: "none" }}>📅 Disponibilités</a>
           <a href="/settings" style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 16px", fontSize: 14, fontWeight: 500, color: "#242424", textDecoration: "none" }}>⚙️ Paramètres</a>
           <div style={{ height: 1, background: "rgba(0,0,0,0.06)", margin: "4px 0" }} />
@@ -231,6 +232,7 @@ export default function DashboardPage() {
             </button>
             <div className="dn-dropdown" onClick={(e) => { (e.target as HTMLElement).closest('.dn-dropdown')?.classList.remove('dn-open'); }}>
               <a href="/dashboard" className="dn-item"><span>📊</span> Tableau de bord</a>
+              <a href="/dashboard/voice" className="dn-item"><span>🤖</span> Planxo AI</a>
               <a href="/settings" className="dn-item"><span>⚙️</span> Paramètres</a>
               <div style={{height:1,background:"rgba(0,0,0,0.06)",margin:"4px 0"}} />
               <a href="/appel-15min" className="dn-item"><span>📅</span> Appel 15 min</a>
