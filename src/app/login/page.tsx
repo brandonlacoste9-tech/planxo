@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, Suspense } from "react";
+import { useTheme } from "@/lib/theme";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter, useSearchParams } from "next/navigation";
 
+const { colors } = useTheme();
 function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -51,19 +53,19 @@ function LoginForm() {
   return (
     <div style={{
       minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center",
-      background: "#f9fafb", fontFamily: "'Inter', system-ui, sans-serif", position: "relative", zIndex: 1,
+      background: colors.bg, fontFamily: "'Inter', system-ui, sans-serif", position: "relative", zIndex: 1,
     }}>
       <div style={{
-        background: "#fff", borderRadius: 16, padding: "40px 36px", width: "100%", maxWidth: 400,
+        background: colors.cardBg || "#fff", borderRadius: 16, padding: "40px 36px", width: "100%", maxWidth: 400,
         border: "1px solid rgba(0,0,0,0.06)", boxShadow: "0 4px 24px rgba(0,0,0,0.04)",
       }}>
         <a href="/" style={{ textDecoration: "none" }}>
           <h1 style={{
             fontFamily: "'Cal Sans', 'Inter', sans-serif", fontSize: 28, fontWeight: 700,
-            color: "#242424", marginBottom: 4, textAlign: "center",
+            color: colors.text, marginBottom: 4, textAlign: "center",
           }}>Planxo</h1>
         </a>
-        <p style={{ textAlign: "center", fontSize: 14, color: "#898989", marginBottom: 28 }}>
+        <p style={{ textAlign: "center", fontSize: 14, color: colors.textMuted, marginBottom: 28 }}>
           {mode === "login" ? "Connectez-vous à votre compte" : "Créez votre compte"}
         </p>
 
@@ -78,7 +80,7 @@ function LoginForm() {
           onClick={handleGoogleLogin}
           style={{
             width: "100%", padding: "12px", borderRadius: 8, border: "1px solid rgba(0,0,0,0.12)",
-            background: "#fff", fontSize: 14, fontWeight: 500, cursor: "pointer",
+            background: colors.cardBg || "#fff", fontSize: 14, fontWeight: 500, cursor: "pointer",
             display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
             fontFamily: "'Inter', sans-serif", marginBottom: 16, transition: "background .15s",
           }}
@@ -92,7 +94,7 @@ function LoginForm() {
           display: "flex", alignItems: "center", gap: 12, marginBottom: 16, color: "#d1d5db",
         }}>
           <div style={{ flex: 1, height: 1, background: "rgba(0,0,0,0.06)" }} />
-          <span style={{ fontSize: 12, color: "#898989" }}>ou</span>
+          <span style={{ fontSize: 12, color: colors.textMuted }}>ou</span>
           <div style={{ flex: 1, height: 1, background: "rgba(0,0,0,0.06)" }} />
         </div>
 
@@ -120,12 +122,12 @@ function LoginForm() {
           </button>
         </form>
 
-        <p style={{ textAlign: "center", fontSize: 13, color: "#898989", marginTop: 20 }}>
+        <p style={{ textAlign: "center", fontSize: 13, color: colors.textMuted, marginTop: 20 }}>
           {mode === "login" ? "Pas encore de compte?" : "Déjà un compte?"}{" "}
           <button
             onClick={() => { setMode(mode === "login" ? "register" : "login"); setError(""); setMessage(""); }}
             style={{
-              background: "none", border: "none", color: "#242424", fontWeight: 600,
+              background: "none", border: "none", color: colors.text, fontWeight: 600,
               cursor: "pointer", fontSize: 13, fontFamily: "'Inter', sans-serif",
               textDecoration: "underline",
             }}
