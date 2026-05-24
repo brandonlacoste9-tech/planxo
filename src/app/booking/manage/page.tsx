@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 
-export default function ManageBookingPage() {
+function ManageBookingContent() {
   const searchParams = useSearchParams();
   const token = searchParams.get('token');
   const action = searchParams.get('action');
@@ -315,5 +315,17 @@ export default function ManageBookingPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ManageBookingPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="text-[#D4AF37] text-xl">Chargement...</div>
+      </div>
+    }>
+      <ManageBookingContent />
+    </Suspense>
   );
 }
