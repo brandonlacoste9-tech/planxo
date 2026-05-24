@@ -1,3 +1,4 @@
+"use client";
 
 import { Shield, RefreshCw, Layers, DollarSign, Clock, CheckCircle } from "lucide-react";
 import { getDashboardMetrics, triggerManualSyncAction } from '@/lib/actions';
