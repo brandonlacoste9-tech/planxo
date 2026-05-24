@@ -288,7 +288,7 @@ export default function DashboardPage() {
             Outlook
           </a>
         </div>
-        <p style={{ fontSize: 12, color: "#898989", marginTop: 8 }}>
+        <p style={{ fontSize: 12, color: colors.textMuted, marginTop: 8 }}>
           <a href="/availability" style={{ color: "#0099ff", textDecoration: "underline" }}>Configurer vos disponibilités →</a>
         </p>
       </div>
@@ -350,7 +350,7 @@ export default function DashboardPage() {
                 <h3 style={styles.h3}>{et.title}</h3>
                 <p style={styles.muted}>{et.length} min · {et.location === "google-meet" ? "Google Meet" : et.location === "phone" ? "Téléphone" : et.location === "zoom" ? "Zoom" : "En personne"}</p>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
-                  <span style={{ fontSize: 12, color: "#898989" }}>planxo.ca/</span>
+                  <span style={{ fontSize: 12, color: colors.textMuted }}>planxo.ca/</span>
                   {editingSlug === et.id ? (
                     <input autoFocus value={editSlugValue}
                       onChange={e => setEditSlugValue(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
@@ -495,15 +495,15 @@ export default function DashboardPage() {
           }} onClick={e => e.stopPropagation()}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 28 }}>
               <h2 style={{ fontFamily: "'Cal Sans',sans-serif", fontSize: 22, fontWeight: 700, margin: 0 }}>Partager</h2>
-              <button onClick={() => setShareTarget(null)} style={{ background: "none", border: "none", fontSize: 24, cursor: "pointer", color: "#898989", padding: 0 }}>×</button>
+              <button onClick={() => setShareTarget(null)} style={{ background: "none", border: "none", fontSize: 24, cursor: "pointer", color: colors.textMuted, padding: 0 }}>×</button>
             </div>
 
             <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 4 }}>{shareTarget.title}</h3>
-            <p style={{ fontSize: 13, color: "#898989", marginBottom: 24 }}>{shareTarget.length} min</p>
+            <p style={{ fontSize: 13, color: colors.textMuted, marginBottom: 24 }}>{shareTarget.length} min</p>
 
             {/* Copy link */}
             <div style={{ marginBottom: 24 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: "#898989", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>Lien direct</div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: colors.textMuted, textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>Lien direct</div>
               <div style={{ display: "flex", gap: 8 }}>
                 <input readOnly value={`${window.location.origin}/${userSlug}/${shareTarget.slug}`}
                   style={{ flex: 1, padding: "10px 14px", borderRadius: 8, border: "1px solid rgba(0,0,0,0.12)", fontSize: 13, fontFamily: "'Inter',sans-serif", background: "#f9fafb" }}
@@ -518,11 +518,11 @@ export default function DashboardPage() {
 
             {/* Email preview */}
             <div style={{ marginBottom: 24 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: "#898989", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>Insérer dans un courriel</div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: colors.textMuted, textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>Insérer dans un courriel</div>
               <div style={{ background: "#f9fafb", borderRadius: 10, padding: 16, border: "1px solid rgba(0,0,0,0.06)", fontSize: 13, color: colors.text, lineHeight: 1.7 }}>
                 <p style={{ margin: "0 0 8px", fontWeight: 600 }}>Réservez un {shareTarget.title} avec moi :</p>
                 <p style={{ margin: "0 0 8px" }}>Choisissez un créneau qui vous convient → <a href={`${window.location.origin}/${userSlug}/${shareTarget.slug}`} style={{ color: "#0099ff" }}>rdv-qc.vercel.app/{userSlug}/{shareTarget.slug}</a></p>
-                <p style={{ margin: 0, color: "#898989", fontSize: 12 }}>— Planxo</p>
+                <p style={{ margin: 0, color: colors.textMuted, fontSize: 12 }}>— Planxo</p>
               </div>
               <button onClick={() => {
                 const text = `Réservez un ${shareTarget.title} avec moi :\n\nChoisissez un créneau qui vous convient → ${window.location.origin}/${userSlug}/${shareTarget.slug}\n\n— Planxo`;
@@ -535,7 +535,7 @@ export default function DashboardPage() {
 
             {/* Embed */}
             <div>
-              <div style={{ fontSize: 12, fontWeight: 600, color: "#898989", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>Intégrer sur votre site</div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: colors.textMuted, textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>Intégrer sur votre site</div>
               <div style={{ background: "#f9fafb", borderRadius: 10, padding: 16, border: "1px solid rgba(0,0,0,0.06)" }}>
                 <code style={{ fontSize: 12, color: colors.text, wordBreak: "break-all", fontFamily: "monospace" }}>
                   {`<iframe src="${window.location.origin}/${userSlug}/${shareTarget.slug}" width="100%" height="600" frameborder="0"></iframe>`}
@@ -594,8 +594,8 @@ const styles: Record<string, React.CSSProperties> = {
     color: "#c8b8a0",
     margin: 0,
   },
-  muted: { fontSize: 14, color: "#898989", margin: "4px 0 0" },
-  backLink: { color: "#898989", textDecoration: "none", fontSize: 14, fontWeight: 500 },
+  muted: { fontSize: 14, color: colors.textMuted, margin: "4px 0 0" },
+  backLink: { color: colors.textMuted, textDecoration: "none", fontSize: 14, fontWeight: 500 },
   statsRow: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16, marginBottom: 48 },
   statCard: {
     padding: 24,
@@ -604,7 +604,7 @@ const styles: Record<string, React.CSSProperties> = {
     textAlign: "center" as const,
   },
   statNumber: { fontSize: 36, fontWeight: 700, color: colors.text, fontFamily: "'Cal Sans', sans-serif" },
-  statLabel: { fontSize: 13, color: "#898989", marginTop: 4, fontWeight: 500 },
+  statLabel: { fontSize: 13, color: colors.textMuted, marginTop: 4, fontWeight: 500 },
   section: { marginBottom: 48 },
   sectionHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
   primaryBtn: {
@@ -698,7 +698,7 @@ const styles: Record<string, React.CSSProperties> = {
   guestName: { fontSize: 14, fontWeight: 600, color: colors.text },
   bookingRight: { textAlign: "right" as const },
   bookingType: { fontSize: 13, fontWeight: 500, color: colors.text },
-  bookingTime: { fontSize: 13, color: "#898989", marginTop: 2 },
+  bookingTime: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
   badge: {
     padding: "4px 10px", borderRadius: 9999, fontSize: 12, fontWeight: 600, flexShrink: 0,
   },
