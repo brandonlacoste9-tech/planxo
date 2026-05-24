@@ -144,7 +144,7 @@ async function scheduleWorkflowExecutions(workflow: any, professionalName: strin
         .from('voice_workflow_executions')
         .select('id')
         .eq('workflow_id', workflow.id)
-        .eq('booking_id', booking.id)
+        .eq('booking_id', String(booking.id))
         .in('status', ['pending', 'executed'])
         .maybeSingle();
 
@@ -172,7 +172,7 @@ async function scheduleWorkflowExecutions(workflow: any, professionalName: strin
         .from('voice_workflow_executions')
         .insert({
           workflow_id: workflow.id,
-          booking_id: booking.id,
+          booking_id: String(booking.id),
           scheduled_for: scheduledFor.toISOString(),
           status: 'pending'
         });
