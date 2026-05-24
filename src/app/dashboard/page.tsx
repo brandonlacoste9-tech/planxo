@@ -155,79 +155,6 @@ export default function DashboardPage() {
   return (
     <div style={{ ...styles.container, color: tColors.text, background: tColors.bg }}>
       <style dangerouslySetInnerHTML={{ __html: `
-        .dn-nav { display:flex; align-items:center; justify-content:space-between; margin-bottom:36px; }
-        .dn-brand { font-family:'Cal Sans','Inter',sans-serif; font-size:28px; font-weight:700; color:#242424; text-decoration:none; letter-spacing:-0.5px; }
-        .dn-menu { position:relative; }
-        .dn-menu-btn { display:flex; align-items:center; gap:6px; padding:8px 14px; border-radius:8px; border:1px solid rgba(0,0,0,0.08); background:#fff; font-size:14px; font-weight:500; color:#242424; cursor:pointer; font-family:'Inter',sans-serif; transition:all 0.12s; }
-        .dn-menu-btn:hover { background:#f9fafb; border-color:rgba(0,0,0,0.15); }
-        .dn-dropdown { position:absolute; top:100%; right:0; margin-top:6px; background:#fff; border:1px solid rgba(0,0,0,0.1); border-radius:12px; padding:6px; box-shadow:0 4px 20px rgba(0,0,0,0.08); z-index:100; min-width:200px; display:none; }
-        .dn-open { display:block; }
-        .dn-item { display:flex; align-items:center; gap:10px; padding:10px 14px; border-radius:8px; border:none; background:none; width:100%; cursor:pointer; font-size:14px; font-weight:500; color:#242424; font-family:'Inter',sans-serif; text-decoration:none; text-align:left; transition:background 0.1s; }
-        .dn-item:hover { background:#f3f4f6; }
-        @media (max-width: 768px) {
-          body { padding: 0 !important; }
-          .dn-nav { flex-direction: column; gap: 12px; align-items: flex-start; }
-          .dn-brand { font-size: 22px !important; }
-        }
-      `}} />
-
-      {/* Mobile top bar */}
-      {isMobile && (
-        <div style={{
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-          marginBottom: 20, paddingBottom: 14,
-          borderBottom: `1px solid ${tColors.border}`,
-        }}>
-          <a href="/" style={{ fontFamily: "'Cal Sans','Inter',sans-serif", fontSize: 22, fontWeight: 700, color: tColors.text, textDecoration: "none", letterSpacing: "-0.5px" }}>Planxo</a>
-          <button
-            onClick={() => setMobileMenuOpen(v => !v)}
-            style={{ background: "none", border: `1px solid ${tColors.border}`, borderRadius: 8, padding: "6px 12px", fontSize: 13, fontWeight: 600, color: tColors.text, cursor: "pointer", fontFamily: "'Inter',sans-serif" }}
-          >
-            Menu {mobileMenuOpen ? "▲" : "▼"}
-          </button>
-        </div>
-      )}
-
-      {/* Mobile nav links (expanded) */}
-      {isMobile && mobileMenuOpen && (
-        <div style={{
-          background: "#f9fafb", borderRadius: 12, border: "1px solid rgba(0,0,0,0.08)",
-          padding: "8px 0", marginBottom: 20,
-        }}>
-          <a href="/dashboard" style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 16px", fontSize: 14, fontWeight: 500, color: "#242424", textDecoration: "none" }}>📊 Tableau de bord</a>
-          <a href="/dashboard/voice" style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 16px", fontSize: 14, fontWeight: 500, color: "#242424", textDecoration: "none" }}>🤖 Planxo AI</a>
-          <a href="/availability" style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 16px", fontSize: 14, fontWeight: 500, color: "#242424", textDecoration: "none" }}>📅 Disponibilités</a>
-          <a href="/settings" style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 16px", fontSize: 14, fontWeight: 500, color: "#242424", textDecoration: "none" }}>⚙️ Paramètres</a>
-          <div style={{ height: 1, background: "rgba(0,0,0,0.06)", margin: "4px 0" }} />
-          <div style={{ padding: "8px 16px" }}>
-            <div style={{ fontSize: 11, fontWeight: 600, color: "#898989", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>Theme</div>
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-              {(Object.entries(themes) as [ThemeName, typeof themes.default][]).map(([key, t]) => (
-                <button key={key} onClick={() => setTheme(key)} title={t.name}
-                  style={{ width: 24, height: 24, borderRadius: "50%", background: t.accent, border: theme === key ? "2px solid white" : "2px solid transparent", outline: theme === key ? `2px solid ${t.accent}` : "none", cursor: "pointer", padding: 0, boxShadow: theme === key ? `0 0 0 2px ${t.accent}` : "none" }}
-                />
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Desktop nav */}
-      {!isMobile && (
-        <div className="dn-nav">
-          <div>
-            <a href="/" className="dn-brand">Planxo</a>
-            <p style={styles.muted}>{userName ? `${userName} — Tableau de bord` : "Tableau de bord"}</p>
-          </div>
-          <div className="dn-menu">
-            <button className="dn-menu-btn" onClick={() => { const el = document.querySelector('.dn-dropdown'); if(el) el.classList.toggle('dn-open'); }}>
-              Menu <span style={{fontSize:10,color:"#898989"}}>▼</span>
-            </button>
-            <div className="dn-dropdown" onClick={(e) => { (e.target as HTMLElement).closest('.dn-dropdown')?.classList.remove('dn-open'); }}>
-              <a href="/dashboard" className="dn-item"><span>📊</span> Tableau de bord</a>
-              <a href="/dashboard/voice" className="dn-item"><span>🤖</span> Planxo AI</a>
-              <a href="/settings" className="dn-item"><span>⚙️</span> Paramètres</a>
-              <div style={{height:1,background:"rgba(0,0,0,0.06)",margin:"4px 0"}} />
               <a href="/appel-15min" className="dn-item"><span>📅</span> Appel 15 min</a>
               <a href="/consultation-30min" className="dn-item"><span>📅</span> Consultation 30 min</a>
               <a href="/reunion-1h" className="dn-item"><span>📅</span> Réunion 1h</a>
@@ -743,12 +670,12 @@ const styles: Record<string, React.CSSProperties> = {
     boxSizing: "border-box" as const,
   },
   select: {
-    padding: "10px 14px",
-    borderRadius: 8,
-    border: "1px solid rgba(0,0,0,0.1)",
-    fontSize: 14,
-    fontFamily: "'Inter', sans-serif",
-    outline: "none",
+  statCard: { padding: 28, borderRadius: 16, background: "#1f160f", border: "1px solid #3a2a1f", textAlign: "center" as const },
+  statCard: { padding: 28, borderRadius: 16, background: "#1f160f", border: "1px solid #3a2a1f", textAlign: "center" as const },
+  statCard: { padding: 28, borderRadius: 16, background: "#1f160f", border: "1px solid #3a2a1f", textAlign: "center" as const },
+  statCard: { padding: 28, borderRadius: 16, background: "#1f160f", border: "1px solid #3a2a1f", textAlign: "center" as const },
+  statCard: { padding: 28, borderRadius: 16, background: "#1f160f", border: "1px solid #3a2a1f", textAlign: "center" as const },
+  statCard: { padding: 28, borderRadius: 16, background: "#1f160f", border: "1px solid #3a2a1f", textAlign: "center" as const },
     flex: 1,
   },
   formRow: { display: "flex", gap: 12 },
