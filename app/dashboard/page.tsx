@@ -138,7 +138,7 @@ export default function DashboardPage() {
               <div className="flex justify-between">
                 <span className="text-slate-500">Protocol:</span>
                 <span className="text-slate-300">Microsoft Graph Delta</span>
-              }
+              </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">State Matrix:</span>
                 <span className="text-amber-400 truncate max-w-[150px]">{metrics.deltaStatus}</span>
