@@ -120,7 +120,7 @@ export default function HomePage() {
               <PlanxoLogo size={26} color={c.text} gold={c.gold} />
             </a>
             <nav style={{ display: "flex", gap: 24, fontSize: 14, fontWeight: 500 }}>
-              {[{ label: t.nav.solutions, href: "#how" }, { label: t.nav.enterprise, href: "#pricing" }, { label: t.nav.calAi, href: "/appel-15min" }, { label: t.nav.developer, href: "/settings" }, { label: t.nav.pricing, href: "#pricing" }].map(l => (
+              {[{ label: t.nav.solutions, href: "#how" }, { label: t.nav.enterprise, href: "#pricing" }, { label: t.nav.calAi, href: "/demo/voice" }, { label: t.nav.developer, href: "/settings" }, { label: t.nav.pricing, href: "#pricing" }].map(l => (
                 <a key={l.label} href={l.href} style={{ color: c.textMuted, textDecoration: "none", transition: "color .15s" }} className="nav-link">{l.label}</a>
               ))}
             </nav>
