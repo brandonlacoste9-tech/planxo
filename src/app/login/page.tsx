@@ -73,6 +73,9 @@ function LoginForm() {
           <div style={{
             background: "#ecfdf5", color: "#059669", padding: "12px 16px", borderRadius: 8,
             fontSize: 13, marginBottom: 16, textAlign: "center",
+        <p style={{ textAlign: "center", fontSize: 11, color: colors.textMuted, marginTop: 32, letterSpacing: "0.5px" }}>
+          Fait au Québec • Pour le Québec
+        </p>
           }}>{message}</div>
         )}
 
@@ -96,6 +99,9 @@ function LoginForm() {
           <div style={{ flex: 1, height: 1, background: "rgba(0,0,0,0.06)" }} />
           <span style={{ fontSize: 12, color: colors.textMuted }}>ou</span>
           <div style={{ flex: 1, height: 1, background: "rgba(0,0,0,0.06)" }} />
+        <p style={{ textAlign: "center", fontSize: 11, color: colors.textMuted, marginTop: 32, letterSpacing: "0.5px" }}>
+          Fait au Québec • Pour le Québec
+        </p>
         </div>
 
         <form onSubmit={handleEmailLogin}>
@@ -135,8 +141,14 @@ function LoginForm() {
             {mode === "login" ? "S'inscrire" : "Se connecter"}
           </button>
         </p>
+        <p style={{ textAlign: "center", fontSize: 11, color: colors.textMuted, marginTop: 32, letterSpacing: "0.5px" }}>
+          Fait au Québec • Pour le Québec
+        </p>
       </div>
       <style dangerouslySetInnerHTML={{ __html: `.google-btn:hover { background: #f9fafb; border-color: rgba(0,0,0,0.2); }` }} />
+        <p style={{ textAlign: "center", fontSize: 11, color: colors.textMuted, marginTop: 32, letterSpacing: "0.5px" }}>
+          Fait au Québec • Pour le Québec
+        </p>
     </div>
   );
 }
@@ -146,6 +158,9 @@ export default function LoginPage() {
     <Suspense fallback={
       <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"#f9fafb"}}>
         <p style={{fontSize:14,color:"#898989"}}>Chargement...</p>
+        <p style={{ textAlign: "center", fontSize: 11, color: colors.textMuted, marginTop: 32, letterSpacing: "0.5px" }}>
+          Fait au Québec • Pour le Québec
+        </p>
       </div>
     }>
       <LoginForm />
