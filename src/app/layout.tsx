@@ -13,9 +13,18 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+};
+
 export const metadata: Metadata = {
   title: "Planxo — Planification de rendez-vous simplifiée | RDV en ligne Québec",
   description: "L'outil de planification #1 pour les professionnels québécois. Connectez vos calendriers, partagez votre lien et laissez vos clients réserver en ligne.",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+  },
 };
 
 export default function RootLayout({
