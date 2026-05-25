@@ -4,15 +4,9 @@ import { useState } from "react";
 import Link from "next/link";
 import { Calendar, Clock, User } from "lucide-react";
 
-interface BookingPageProps {
-  params: { username: string };
-}
-
-export default function BookingPage({ params }: BookingPageProps) {
-  const { username } = params;
+export default function BookingPage() {
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
 
-  // Mock available slots - we'll connect this to real data later
   const availableSlots = [
     { id: "1", date: "Monday, June 2", time: "10:00 AM - 10:30 AM", duration: "30 min" },
     { id: "2", date: "Monday, June 2", time: "2:00 PM - 2:30 PM", duration: "30 min" },
@@ -22,12 +16,11 @@ export default function BookingPage({ params }: BookingPageProps) {
 
   const handleBook = () => {
     if (!selectedSlot) return;
-    alert(`Booking confirmed for ${selectedSlot}! (This will connect to real booking system soon)`);
+    alert(`Booking confirmed for ${selectedSlot}! (Real booking coming soon)`);
   };
 
   return (
     <div className="min-h-screen bg-zinc-950 text-white">
-      {/* Header */}
       <div className="border-b border-zinc-800">
         <div className="max-w-4xl mx-auto px-6 py-6 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-3">
