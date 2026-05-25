@@ -213,7 +213,10 @@ export default function AvailabilityPage() {
         body: JSON.stringify({ timezone, intervals }),
       });
 
-      if (!res.ok) throw new Error("Failed to save");
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || "Failed to save");
+      }
 
       setSuccess("Availability saved successfully!");
       setTimeout(() => setSuccess(""), 3000);
