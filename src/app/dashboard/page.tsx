@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { DashboardLayout } from "@/components/DashboardLayout";
 import { useTheme } from "@/lib/theme";
+import { Calendar, Users, CheckCircle, AlertCircle, ArrowRight } from "lucide-react";
 
 interface EventType {
   id: string;
@@ -24,33 +26,20 @@ interface Booking {
   eventType: { title: string; slug: string };
 }
 
-type FilterValue = "upcoming" | "past" | "cancelled";
-
-const FILTERS = [
-  { value: "upcoming" as const, label: "À venir" },
-  { value: "past" as const, label: "Passés" },
-  { value: "cancelled" as const, label: "Annulés" },
-];
-
 export default function DashboardPage() {
   const [eventTypes, setEventTypes] = useState<EventType[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [userName, setUserName] = useState("");
   const [userSlug, setUserSlug] = useState("");
-  const [showNew, setShowNew] = useState(false);
-  const [newET, setNewET] = useState({ title: "", slug: "", length: 30, location: "google-meet", description: "" });
-  const [copySuccess, setCopySuccess] = useState("");
-  const [activeFilter, setActiveFilter] = useState<FilterValue>("upcoming");
-  const { colors, setTheme, theme } = useTheme();
-  const [isMobile, setIsMobile] = useState(false);
+  const { colors } = useTheme();
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const [userRes, bookingsRes] = await Promise.all([
         fetch("/api/v2/me"),
-        fetch(`/api/v2/bookings?timeFilter=${activeFilter}`)
+        fetch("/api/v2/bookings?timeFilter=upcoming"),
       ]);
       const user = await userRes.json();
       const bookingsData = await bookingsRes.json();
@@ -61,213 +50,288 @@ export default function DashboardPage() {
       setBookings(bookingsData.data || []);
     } catch (e) {
       console.error(e);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
-  }, [activeFilter]);
+  }, []);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
-  useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 768);
-    check();
-    window.addEventListener('resize', check);
-    return () => window.removeEventListener('resize', check);
-  }, []);
-
-  const handleCancelBooking = async (bookingId: string) => {
-    if (!confirm("Annuler ce rendez-vous ?")) return;
-    await fetch(`/api/v2/bookings/${bookingId}/cancel`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ reason: "Annulé par l'hôte" }),
-    });
-    fetchData();
-  };
-
-  async function createEventType(e: React.FormEvent) {
-    e.preventDefault();
-    const res = await fetch("/api/v2/event-types", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(newET),
-    });
-    if (res.ok) {
-      const created = await res.json();
-      setEventTypes([...eventTypes, created]);
-      setShowNew(false);
-      setNewET({ title: "", slug: "", length: 30, location: "google-meet", description: "" });
-    }
-  }
-
-  function copyLink(slug: string) {
-    const url = `${window.location.origin}/${userSlug}/${slug}`;
-    navigator.clipboard.writeText(url);
-    setCopySuccess(slug);
-    setTimeout(() => setCopySuccess(""), 2000);
-  }
+  const upcomingBookings = bookings.filter(b => b.status === "confirmed").slice(0, 5);
+  const confirmedCount = bookings.filter(b => b.status === "confirmed").length;
 
   if (loading) {
-    return <div style={{ minHeight: "100vh", background: colors.bg, color: colors.text, display: "flex", alignItems: "center", justifyContent: "center" }}>Chargement...</div>;
+    return (
+      <DashboardLayout>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: colors.textMuted }}>
+          Loading...
+        </div>
+      </DashboardLayout>
+    );
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: colors.bg, color: colors.text, padding: isMobile ? 20 : "40px 60px" }}>
-      {/* Top Bar */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 40 }}>
-        <div>
-          <div style={{ fontFamily: "'Cal Sans', 'Inter', sans-serif", fontSize: 26, fontWeight: 700 }}>Planxo</div>
-          <div style={{ color: colors.textMuted, fontSize: 13 }}>Tableau de bord</div>
+    <DashboardLayout>
+      <div style={{ maxWidth: 1200, margin: "0 auto" }}>
+        {/* Header */}
+        <div style={{ marginBottom: 40 }}>
+          <h1 style={{ fontSize: 32, fontWeight: 700, color: colors.text, margin: 0 }}>
+            Welcome back, {userName || "User"}!
+          </h1>
+          <p style={{ fontSize: 14, color: colors.textMuted, margin: "8px 0 0" }}>
+            Here's an overview of your scheduling activity
+          </p>
         </div>
-        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-          <div style={{ display: "flex", gap: 6 }}>
-            {(["cognac", "midnight", "ocean", "forest"] as const).map((key) => (
-              <button
-                key={key}
-                onClick={() => setTheme(key)}
-                style={{
-                  width: 20,
-                  height: 20,
-                  borderRadius: "50%",
-                  background: key === "cognac" ? "#c47f3a" : key === "midnight" ? "#6c5ce7" : key === "ocean" ? "#2d8cf0" : "#2e7d32",
-                  border: theme === key ? "2px solid #fff" : "2px solid transparent",
-                  cursor: "pointer",
-                  padding: 0
-                }}
-              />
-            ))}
-          </div>
-          <button onClick={() => setTheme(theme === "cognac" ? "default" : "cognac")} style={{ background: colors.cardBg, border: `1px solid ${colors.border}`, padding: "8px 14px", borderRadius: 8, color: colors.text, cursor: "pointer", fontSize: 13 }}>
-            Changer le thème
-          </button>
-        </div>
-      </div>
 
-      {/* Profile Banner */}
-      {userSlug && (
-        <div style={{ background: colors.cardBg, border: `1px solid ${colors.border}`, borderRadius: 14, padding: 18, marginBottom: 32, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-          <div>
-            <div style={{ fontSize: 13, color: colors.textMuted }}>Votre lien de réservation</div>
-            <div style={{ fontWeight: 600, marginTop: 4 }}>{window.location.origin}/{userSlug}</div>
-          </div>
-          <button onClick={() => copyLink("__profile__")} style={{ background: colors.accent, color: "#1a1008", padding: "10px 20px", borderRadius: 10, border: "none", fontWeight: 600, cursor: "pointer" }}>
-            {copySuccess === "__profile__" ? "Copié !" : "Copier le lien"}
-          </button>
-        </div>
-      )}
-
-      {/* Stats */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16, marginBottom: 48 }}>
-        <div style={{ background: colors.cardBg, border: `1px solid ${colors.border}`, borderRadius: 16, padding: 26, textAlign: "center" }}>
-          <div style={{ fontSize: 40, fontWeight: 700 }}>{eventTypes.length}</div>
-          <div style={{ color: colors.textMuted, marginTop: 4, fontSize: 14 }}>Types de rendez-vous</div>
-        </div>
-        <div style={{ background: colors.cardBg, border: `1px solid ${colors.border}`, borderRadius: 16, padding: 26, textAlign: "center" }}>
-          <div style={{ fontSize: 40, fontWeight: 700 }}>{bookings.length}</div>
-          <div style={{ color: colors.textMuted, marginTop: 4, fontSize: 14 }}>Rendez-vous</div>
-        </div>
-        <div style={{ background: colors.cardBg, border: `1px solid ${colors.border}`, borderRadius: 16, padding: 26, textAlign: "center" }}>
-          <div style={{ fontSize: 40, fontWeight: 700 }}>{bookings.filter(b => b.status === "confirmed").length}</div>
-          <div style={{ color: colors.textMuted, marginTop: 4, fontSize: 14 }}>Confirmés</div>
-        </div>
-      </div>
-
-      {/* Calendars */}
-      <div style={{ marginBottom: 48 }}>
-        <h2 style={{ fontSize: 19, fontWeight: 600, marginBottom: 16, color: colors.text }}>Calendars</h2>
-        
-        <div style={{ background: colors.cardBg, border: `1px solid ${colors.border}`, borderRadius: 14, padding: 22 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+        {/* Stats Grid */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
+            gap: 16,
+            marginBottom: 40,
+          }}
+        >
+          {/* Event Types Card */}
+          <div
+            style={{
+              background: colors.cardBg,
+              border: `1px solid ${colors.border}`,
+              borderRadius: 16,
+              padding: 24,
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "flex-start",
+            }}
+          >
             <div>
-              <div style={{ fontWeight: 600 }}>Planxo Calendar</div>
-              <div style={{ color: "#22c55e", fontSize: 13 }}>● Active • Mon–Fri, 9:00–17:00</div>
-            </div>
-            <div style={{ display: "flex", gap: 8 }}>
-              <a href="/api/auth/google" style={{ background: "#fff", color: "#000", padding: "8px 16px", borderRadius: 8, textDecoration: "none", fontSize: 13, border: `1px solid ${colors.border}` }}>Google</a>
-              <a href="/api/auth/outlook/connect" style={{ background: "#0078D4", color: "#fff", padding: "8px 16px", borderRadius: 8, textDecoration: "none", fontSize: 13 }}>Outlook</a>
-            </div>
-          </div>
-          <a href="/availability" style={{ color: colors.accent, fontSize: 13 }}>Edit availability →</a>
-        </div>
-      </div>
-
-      {/* Event Types */}
-      <div style={{ marginBottom: 48 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
-          <h2 style={{ fontSize: 19, fontWeight: 600, margin: 0, color: colors.text }}>Types de rendez-vous</h2>
-          <button onClick={() => setShowNew(!showNew)} style={{ background: colors.accent, color: "#1a1008", padding: "9px 18px", borderRadius: 10, border: "none", fontWeight: 600, cursor: "pointer" }}>
-            {showNew ? "Annuler" : "+ Nouveau"}
-          </button>
-        </div>
-
-        {showNew && (
-          <form onSubmit={createEventType} style={{ background: colors.cardBg, border: `1px solid ${colors.border}`, padding: 20, borderRadius: 14, marginBottom: 20 }}>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 100px", gap: 12 }}>
-              <input placeholder="Titre" value={newET.title} onChange={e => setNewET({ ...newET, title: e.target.value })} required style={{ padding: 11, borderRadius: 8, border: `1px solid ${colors.border}`, background: colors.bg, color: colors.text }} />
-              <input placeholder="Slug" value={newET.slug} onChange={e => setNewET({ ...newET, slug: e.target.value })} required style={{ padding: 11, borderRadius: 8, border: `1px solid ${colors.border}`, background: colors.bg, color: colors.text }} />
-              <button type="submit" style={{ background: colors.accent, color: "#1a1008", border: "none", borderRadius: 8, fontWeight: 600 }}>Créer</button>
-            </div>
-          </form>
-        )}
-
-        {eventTypes.length === 0 ? (
-          <p style={{ color: colors.textMuted }}>Aucun type de rendez-vous. Créez votre premier !</p>
-        ) : (
-          <div style={{ display: "grid", gap: 10 }}>
-            {eventTypes.map(et => (
-              <div key={et.id} style={{ background: colors.cardBg, border: `1px solid ${colors.border}`, borderRadius: 12, padding: 18, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div>
-                  <div style={{ fontWeight: 600 }}>{et.title}</div>
-                  <div style={{ color: colors.textMuted, fontSize: 13 }}>{et.length} min</div>
-                </div>
-                <button onClick={() => copyLink(et.slug)} style={{ background: colors.accent, color: "#1a1008", padding: "8px 16px", borderRadius: 8, border: "none", fontWeight: 600, cursor: "pointer" }}>
-                  {copySuccess === et.slug ? "Copié" : "Copier"}
-                </button>
+              <div style={{ fontSize: 12, color: colors.textMuted, textTransform: "uppercase", fontWeight: 600, letterSpacing: "0.5px" }}>
+                Event Types
               </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Bookings */}
-      <div>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-          <h2 style={{ fontSize: 19, fontWeight: 600, margin: 0, color: colors.text }}>Rendez-vous</h2>
-        </div>
-
-        <div style={{ display: "flex", gap: 8, marginBottom: 18 }}>
-          {FILTERS.map(f => (
-            <button key={f.value} onClick={() => setActiveFilter(f.value)} style={{
-              padding: "7px 16px",
-              borderRadius: 999,
-              border: activeFilter === f.value ? `1px solid ${colors.accent}` : `1px solid ${colors.border}`,
-              background: activeFilter === f.value ? colors.accent : "transparent",
-              color: activeFilter === f.value ? "#1a1008" : colors.text,
-              cursor: "pointer",
-              fontSize: 13
-            }}>
-              {f.label}
-            </button>
-          ))}
-        </div>
-
-        {bookings.length === 0 ? (
-          <p style={{ color: colors.textMuted }}>Aucun rendez-vous pour ce filtre.</p>
-        ) : (
-          <div style={{ display: "grid", gap: 10 }}>
-            {bookings.map(b => (
-              <div key={b.id} style={{ background: colors.cardBg, border: `1px solid ${colors.border}`, borderRadius: 12, padding: 18, display: "flex", justifyContent: "space-between" }}>
-                <div>
-                  <div style={{ fontWeight: 600 }}>{b.guestName}</div>
-                  <div style={{ color: colors.textMuted, fontSize: 13 }}>{b.eventType?.title} • {new Date(b.startTime).toLocaleDateString('fr-CA')}</div>
-                </div>
-                <button onClick={() => handleCancelBooking(b.id)} style={{ color: "#e74c3c", background: "none", border: "none", cursor: "pointer", fontSize: 13 }}>Annuler</button>
+              <div style={{ fontSize: 40, fontWeight: 700, color: colors.accent, marginTop: 12 }}>
+                {eventTypes.length}
               </div>
-            ))}
+              <p style={{ fontSize: 13, color: colors.textMuted, margin: "8px 0 0" }}>
+                Active scheduling types
+              </p>
+            </div>
+            <div style={{ width: 48, height: 48, background: `${colors.accent}20`, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <Calendar size={24} color={colors.accent} />
+            </div>
           </div>
-        )}
+
+          {/* Bookings Card */}
+          <div
+            style={{
+              background: colors.cardBg,
+              border: `1px solid ${colors.border}`,
+              borderRadius: 16,
+              padding: 24,
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "flex-start",
+            }}
+          >
+            <div>
+              <div style={{ fontSize: 12, color: colors.textMuted, textTransform: "uppercase", fontWeight: 600, letterSpacing: "0.5px" }}>
+                Total Bookings
+              </div>
+              <div style={{ fontSize: 40, fontWeight: 700, color: colors.accent, marginTop: 12 }}>
+                {bookings.length}
+              </div>
+              <p style={{ fontSize: 13, color: colors.textMuted, margin: "8px 0 0" }}>
+                All time bookings
+              </p>
+            </div>
+            <div style={{ width: 48, height: 48, background: `${colors.accent}20`, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <Users size={24} color={colors.accent} />
+            </div>
+          </div>
+
+          {/* Confirmed Card */}
+          <div
+            style={{
+              background: colors.cardBg,
+              border: `1px solid ${colors.border}`,
+              borderRadius: 16,
+              padding: 24,
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "flex-start",
+            }}
+          >
+            <div>
+              <div style={{ fontSize: 12, color: colors.textMuted, textTransform: "uppercase", fontWeight: 600, letterSpacing: "0.5px" }}>
+                Confirmed
+              </div>
+              <div style={{ fontSize: 40, fontWeight: 700, color: "#22c55e", marginTop: 12 }}>
+                {confirmedCount}
+              </div>
+              <p style={{ fontSize: 13, color: colors.textMuted, margin: "8px 0 0" }}>
+                Confirmed appointments
+              </p>
+            </div>
+            <div style={{ width: 48, height: 48, background: "#22c55e20", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <CheckCircle size={24} color="#22c55e" />
+            </div>
+          </div>
+        </div>
+
+        {/* Upcoming Bookings */}
+        <div style={{ marginBottom: 40 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+            <h2 style={{ fontSize: 20, fontWeight: 600, color: colors.text, margin: 0 }}>
+              Upcoming Bookings
+            </h2>
+            <a
+              href="/dashboard"
+              style={{
+                fontSize: 13,
+                color: colors.accent,
+                textDecoration: "none",
+                display: "flex",
+                alignItems: "center",
+                gap: 4,
+              }}
+            >
+              View all <ArrowRight size={14} />
+            </a>
+          </div>
+
+          {upcomingBookings.length === 0 ? (
+            <div
+              style={{
+                background: colors.cardBg,
+                border: `1px solid ${colors.border}`,
+                borderRadius: 16,
+                padding: 40,
+                textAlign: "center",
+                color: colors.textMuted,
+              }}
+            >
+              <AlertCircle size={32} style={{ margin: "0 auto 12px", opacity: 0.5 }} />
+              <p>No upcoming bookings</p>
+            </div>
+          ) : (
+            <div style={{ display: "grid", gap: 12 }}>
+              {upcomingBookings.map((booking) => (
+                <div
+                  key={booking.id}
+                  style={{
+                    background: colors.cardBg,
+                    border: `1px solid ${colors.border}`,
+                    borderRadius: 12,
+                    padding: 16,
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
+                >
+                  <div>
+                    <div style={{ fontWeight: 600, color: colors.text }}>
+                      {booking.guestName}
+                    </div>
+                    <div style={{ fontSize: 13, color: colors.textMuted, marginTop: 4 }}>
+                      {booking.eventType?.title} • {new Date(booking.startTime).toLocaleDateString()} at{" "}
+                      {new Date(booking.startTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button
+                      style={{
+                        padding: "8px 14px",
+                        borderRadius: 8,
+                        background: colors.accent,
+                        color: colors.accentText,
+                        border: "none",
+                        fontSize: 12,
+                        fontWeight: 600,
+                        cursor: "pointer",
+                      }}
+                    >
+                      Details
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Quick Actions */}
+        <div style={{ marginBottom: 40 }}>
+          <h2 style={{ fontSize: 20, fontWeight: 600, color: colors.text, margin: "0 0 16px" }}>
+            Quick Actions
+          </h2>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
+            <a
+              href="/event-types"
+              style={{
+                background: colors.cardBg,
+                border: `1px solid ${colors.border}`,
+                borderRadius: 12,
+                padding: 16,
+                textDecoration: "none",
+                color: colors.text,
+                transition: "all 0.2s",
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLElement).style.borderColor = colors.accent;
+                (e.currentTarget as HTMLElement).style.background = `${colors.accent}10`;
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLElement).style.borderColor = colors.border;
+                (e.currentTarget as HTMLElement).style.background = colors.cardBg;
+              }}
+            >
+              <Calendar size={20} color={colors.accent} />
+              <div>
+                <div style={{ fontWeight: 600, fontSize: 14 }}>Create Event Type</div>
+                <div style={{ fontSize: 12, color: colors.textMuted, marginTop: 2 }}>
+                  Add a new scheduling type
+                </div>
+              </div>
+            </a>
+
+            <a
+              href="/availability"
+              style={{
+                background: colors.cardBg,
+                border: `1px solid ${colors.border}`,
+                borderRadius: 12,
+                padding: 16,
+                textDecoration: "none",
+                color: colors.text,
+                transition: "all 0.2s",
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLElement).style.borderColor = colors.accent;
+                (e.currentTarget as HTMLElement).style.background = `${colors.accent}10`;
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLElement).style.borderColor = colors.border;
+                (e.currentTarget as HTMLElement).style.background = colors.cardBg;
+              }}
+            >
+              <AlertCircle size={20} color={colors.accent} />
+              <div>
+                <div style={{ fontWeight: 600, fontSize: 14 }}>Set Availability</div>
+                <div style={{ fontSize: 12, color: colors.textMuted, marginTop: 2 }}>
+                  Configure your working hours
+                </div>
+              </div>
+            </a>
+          </div>
+        </div>
       </div>
-    </div>
+    </DashboardLayout>
   );
 }

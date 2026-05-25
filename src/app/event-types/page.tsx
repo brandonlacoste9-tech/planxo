@@ -1,15 +1,40 @@
 "use client";
+
 import { useState, useEffect } from "react";
+import { DashboardLayout } from "@/components/DashboardLayout";
+import { useTheme } from "@/lib/theme";
+import { Plus, Edit, Trash2, Copy, ExternalLink, Loader2 } from "lucide-react";
+
+interface EventType {
+  id: string;
+  title: string;
+  slug: string;
+  description: string;
+  length: number;
+  location: string;
+  color?: string;
+  price?: number;
+  currency?: string;
+  bufferBefore?: number;
+  bufferAfter?: number;
+  maxPerDay?: number;
+  scheduleId?: string | number;
+}
+
+interface Schedule {
+  id: string | number;
+  name: string;
+}
 
 const LOCATIONS = [
-  { value: "google-meet", label: "Google Meet", icon: "📹" },
-  { value: "zoom", label: "Zoom", icon: "🎥" },
-  { value: "teams", label: "Microsoft Teams", icon: "💼" },
-  { value: "phone", label: "Téléphone", icon: "📞" },
-  { value: "in-person", label: "En personne", icon: "📍" },
+  { value: "google-meet", label: "Google Meet" },
+  { value: "zoom", label: "Zoom" },
+  { value: "teams", label: "Microsoft Teams" },
+  { value: "phone", label: "Phone" },
+  { value: "in-person", label: "In-person" },
 ];
 
-const COLORS = ["#242424","#4f46e5","#059669","#d97706","#dc2626","#7c3aed","#0891b2","#be185d"];
+const COLORS = ["#242424", "#4f46e5", "#059669", "#d97706", "#dc2626", "#7c3aed", "#0891b2", "#be185d"];
 
 function emptyForm() {
   return {
@@ -24,31 +49,32 @@ function emptyForm() {
     bufferBefore: 0,
     bufferAfter: 0,
     maxPerDay: "",
-    scheduleId: "" as string | number,
+    scheduleId: "",
   };
 }
 
 export default function EventTypesPage() {
-  const [eventTypes, setEventTypes] = useState<any[]>([]);
-  const [schedules, setSchedules] = useState<any[]>([]);
+  const [eventTypes, setEventTypes] = useState<EventType[]>([]);
+  const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [loading, setLoading] = useState(true);
-  const [modal, setModal] = useState<{ open: boolean; editing: any | null }>({ open: false, editing: null });
+  const [modal, setModal] = useState<{ open: boolean; editing: EventType | null }>({ open: false, editing: null });
   const [form, setForm] = useState(emptyForm());
   const [saving, setSaving] = useState(false);
+  const [copySuccess, setCopySuccess] = useState("");
+  const { colors } = useTheme();
 
   const fetchAll = () => {
     fetch("/api/v2/event-types")
-      .then(r => r.json())
-      .then(d => setEventTypes(d.data || []))
+      .then((r) => r.json())
+      .then((d) => setEventTypes(d.data || []))
       .finally(() => setLoading(false));
   };
 
   useEffect(() => {
     fetchAll();
-    // Fetch schedules for the picker
     fetch("/api/v2/me")
-      .then(r => r.json())
-      .then(d => setSchedules(d.schedules || []));
+      .then((r) => r.json())
+      .then((d) => setSchedules(d.schedules || []));
   }, []);
 
   const openNew = () => {
@@ -56,7 +82,7 @@ export default function EventTypesPage() {
     setModal({ open: true, editing: null });
   };
 
-  const openEdit = (et: any) => {
+  const openEdit = (et: EventType) => {
     setForm({
       title: et.title || "",
       slug: et.slug || "",
@@ -80,7 +106,7 @@ export default function EventTypesPage() {
     if (!form.title.trim()) return;
     setSaving(true);
     const isEdit = !!modal.editing;
-    const url = isEdit ? `/api/v2/event-types/${modal.editing.id}` : "/api/v2/event-types";
+    const url = isEdit ? `/api/v2/event-types/${modal.editing!.id}` : "/api/v2/event-types";
     const method = isEdit ? "PATCH" : "POST";
     const body: any = {
       title: form.title.trim(),
@@ -97,235 +123,484 @@ export default function EventTypesPage() {
       scheduleId: form.scheduleId !== "" ? Number(form.scheduleId) : null,
     };
 
-    const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const res = await fetch(url, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
     setSaving(false);
-    if (res.ok) { closeModal(); fetchAll(); }
+    if (res.ok) {
+      closeModal();
+      fetchAll();
+    }
   };
 
-  const remove = async (et: any) => {
-    if (!confirm(`Supprimer "${et.title}" ?`)) return;
+  const remove = async (et: EventType) => {
+    if (!confirm(`Delete "${et.title}"?`)) return;
     await fetch(`/api/v2/event-types/${et.id}`, { method: "DELETE" });
     fetchAll();
   };
 
   const copyLink = (slug: string) => {
     navigator.clipboard.writeText(`${window.location.origin}/${slug}`);
+    setCopySuccess(slug);
+    setTimeout(() => setCopySuccess(""), 2000);
   };
 
-  const set = (k: string, v: any) => setForm(f => ({ ...f, [k]: v }));
+  const set = (k: string, v: any) => setForm((f) => ({ ...f, [k]: v }));
 
-  if (loading) return <div style={s.page}><div style={s.content}><p style={{color:"#898989"}}>Chargement...</p></div></div>;
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: colors.textMuted }}>
+          <Loader2 size={24} style={{ animation: "spin 1s linear infinite" }} />
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
-    <div style={s.page}>
-      <div style={s.sidebar}>
-        <a href="/" style={{ fontFamily:"'Cal Sans',sans-serif",fontSize:18,fontWeight:700,color:"#242424",textDecoration:"none",display:"block",marginBottom:24 }}>Planxo</a>
-        <div style={{marginTop:"auto",paddingTop:20,borderTop:"1px solid rgba(0,0,0,0.04)"}}>
-          <a href="/dashboard" style={{fontSize:13,color:"#898989",textDecoration:"none"}}>← Tableau de bord</a>
-        </div>
-      </div>
-      <div style={s.content}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:24}}>
+    <DashboardLayout>
+      <div style={{ maxWidth: 1000, margin: "0 auto" }}>
+        {/* Header */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 32 }}>
           <div>
-            <h1 style={{ fontFamily:"'Cal Sans',sans-serif",fontSize:24,fontWeight:700,margin:0 }}>Types de rendez-vous</h1>
-            <p style={{fontSize:14,color:"#898989",margin:"4px 0 0"}}>Créez et gérez vos types de rendez-vous.</p>
+            <h1 style={{ fontSize: 32, fontWeight: 700, color: colors.text, margin: 0 }}>Event Types</h1>
+            <p style={{ fontSize: 14, color: colors.textMuted, margin: "8px 0 0" }}>
+              Create and manage your scheduling types
+            </p>
           </div>
-          <button onClick={openNew} style={s.primaryBtn}>+ Nouveau</button>
+          <button
+            onClick={openNew}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "10px 18px",
+              background: colors.accent,
+              color: colors.accentText,
+              border: "none",
+              borderRadius: 10,
+              fontWeight: 600,
+              cursor: "pointer",
+              fontSize: 14,
+            }}
+          >
+            <Plus size={18} />
+            New Event Type
+          </button>
         </div>
 
+        {/* Event Types List */}
         {eventTypes.length === 0 ? (
-          <div style={{textAlign:"center",padding:"60px 20px",color:"#898989",fontSize:14}}>
-            Aucun type de rendez-vous. Cliquez sur "+ Nouveau" pour en créer un.
+          <div
+            style={{
+              background: colors.cardBg,
+              border: `1px solid ${colors.border}`,
+              borderRadius: 16,
+              padding: 60,
+              textAlign: "center",
+              color: colors.textMuted,
+            }}
+          >
+            <p style={{ fontSize: 14, margin: 0 }}>No event types yet. Create your first one to get started.</p>
           </div>
         ) : (
-          <div style={{display:"flex",flexDirection:"column",gap:2}}>
-            {eventTypes.map((et: any) => (
-              <div key={et.id} onClick={() => openEdit(et)} style={{padding:"16px 20px",borderRadius:10,border:"1px solid rgba(0,0,0,0.04)",background:"#fff",display:"flex",alignItems:"center",justifyContent:"space-between",cursor:"pointer",transition:"all .15s"}} className="card-hover">
-                <div style={{display:"flex",alignItems:"center",gap:14}}>
-                  <div style={{width:36,height:36,borderRadius:8,background:et.color||"#242424",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:14,fontWeight:700,flexShrink:0}}>
-                    {et.title[0]}
+          <div style={{ display: "grid", gap: 12 }}>
+            {eventTypes.map((et) => (
+              <div
+                key={et.id}
+                style={{
+                  background: colors.cardBg,
+                  border: `1px solid ${colors.border}`,
+                  borderRadius: 12,
+                  padding: 18,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  transition: "all 0.2s",
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLElement).style.borderColor = colors.accent;
+                  (e.currentTarget as HTMLElement).style.background = `${colors.accent}08`;
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLElement).style.borderColor = colors.border;
+                  (e.currentTarget as HTMLElement).style.background = colors.cardBg;
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 16, flex: 1 }}>
+                  <div
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: 10,
+                      background: et.color || "#242424",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: "#fff",
+                      fontWeight: 700,
+                      fontSize: 16,
+                      flexShrink: 0,
+                    }}
+                  >
+                    {et.title[0]?.toUpperCase()}
                   </div>
                   <div>
-                    <div style={{fontSize:14,fontWeight:600}}>{et.title}</div>
-                    <div style={{fontSize:12,color:"#898989"}}>
-                      {et.length} min · {et.location} · /{et.slug}
-                      {et.bufferBefore ? ` · tampon ${et.bufferBefore}min` : ""}
-                      {et.maxPerDay ? ` · max ${et.maxPerDay}/jour` : ""}
-                      {et.price > 0 ? ` · ${(et.price/100).toFixed(2)} ${et.currency?.toUpperCase()}` : ""}
+                    <div style={{ fontWeight: 600, color: colors.text, fontSize: 15 }}>
+                      {et.title}
+                    </div>
+                    <div style={{ fontSize: 13, color: colors.textMuted, marginTop: 4 }}>
+                      {et.length} min • {LOCATIONS.find((l) => l.value === et.location)?.label || et.location} • /{et.slug}
+                      {et.price > 0 && ` • ${(et.price / 100).toFixed(2)} ${et.currency?.toUpperCase()}`}
                     </div>
                   </div>
                 </div>
-                <div style={{display:"flex",gap:8}} onClick={e => e.stopPropagation()}>
-                  <button onClick={() => copyLink(et.slug)} style={s.chipBtn}>📋 Copier le lien</button>
-                  <a href={`/${et.slug}`} target="_blank" style={{fontSize:12,color:"#0099ff",textDecoration:"none",padding:"6px 12px"}}>Aperçu →</a>
+
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <button
+                    onClick={() => copyLink(et.slug)}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
+                      padding: "8px 12px",
+                      background: "transparent",
+                      border: `1px solid ${colors.border}`,
+                      borderRadius: 8,
+                      color: colors.textMuted,
+                      cursor: "pointer",
+                      fontSize: 12,
+                      transition: "all 0.2s",
+                    }}
+                    onMouseEnter={(e) => {
+                      (e.currentTarget as HTMLElement).style.borderColor = colors.accent;
+                      (e.currentTarget as HTMLElement).style.color = colors.accent;
+                    }}
+                    onMouseLeave={(e) => {
+                      (e.currentTarget as HTMLElement).style.borderColor = colors.border;
+                      (e.currentTarget as HTMLElement).style.color = colors.textMuted;
+                    }}
+                  >
+                    <Copy size={14} />
+                    {copySuccess === et.slug ? "Copied!" : "Copy"}
+                  </button>
+
+                  <a
+                    href={`/${et.slug}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
+                      padding: "8px 12px",
+                      background: "transparent",
+                      border: `1px solid ${colors.border}`,
+                      borderRadius: 8,
+                      color: colors.textMuted,
+                      cursor: "pointer",
+                      fontSize: 12,
+                      textDecoration: "none",
+                      transition: "all 0.2s",
+                    }}
+                    onMouseEnter={(e) => {
+                      (e.currentTarget as HTMLElement).style.borderColor = colors.accent;
+                      (e.currentTarget as HTMLElement).style.color = colors.accent;
+                    }}
+                    onMouseLeave={(e) => {
+                      (e.currentTarget as HTMLElement).style.borderColor = colors.border;
+                      (e.currentTarget as HTMLElement).style.color = colors.textMuted;
+                    }}
+                  >
+                    <ExternalLink size={14} />
+                    Preview
+                  </a>
+
+                  <button
+                    onClick={() => openEdit(et)}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
+                      padding: "8px 12px",
+                      background: "transparent",
+                      border: `1px solid ${colors.border}`,
+                      borderRadius: 8,
+                      color: colors.textMuted,
+                      cursor: "pointer",
+                      fontSize: 12,
+                      transition: "all 0.2s",
+                    }}
+                    onMouseEnter={(e) => {
+                      (e.currentTarget as HTMLElement).style.borderColor = colors.accent;
+                      (e.currentTarget as HTMLElement).style.color = colors.accent;
+                    }}
+                    onMouseLeave={(e) => {
+                      (e.currentTarget as HTMLElement).style.borderColor = colors.border;
+                      (e.currentTarget as HTMLElement).style.color = colors.textMuted;
+                    }}
+                  >
+                    <Edit size={14} />
+                    Edit
+                  </button>
+
+                  <button
+                    onClick={() => remove(et)}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
+                      padding: "8px 12px",
+                      background: "transparent",
+                      border: `1px solid #ef4444`,
+                      borderRadius: 8,
+                      color: "#ef4444",
+                      cursor: "pointer",
+                      fontSize: 12,
+                      transition: "all 0.2s",
+                    }}
+                    onMouseEnter={(e) => {
+                      (e.currentTarget as HTMLElement).style.background = "#ef444420";
+                    }}
+                    onMouseLeave={(e) => {
+                      (e.currentTarget as HTMLElement).style.background = "transparent";
+                    }}
+                  >
+                    <Trash2 size={14} />
+                    Delete
+                  </button>
                 </div>
               </div>
             ))}
           </div>
         )}
 
-        {/* ── Modal ── */}
+        {/* Modal */}
         {modal.open && (
           <>
-            <div style={s.backdrop} onClick={closeModal} />
-            <div style={s.modal}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:24}}>
-                <h2 style={{ fontFamily:"'Cal Sans',sans-serif",fontSize:20,fontWeight:700,margin:0 }}>
-                  {modal.editing ? "Modifier" : "Nouveau type"}
+            <div
+              style={{
+                position: "fixed",
+                inset: 0,
+                background: "rgba(0,0,0,0.5)",
+                zIndex: 50,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+              onClick={closeModal}
+            />
+            <div
+              style={{
+                position: "fixed",
+                top: "50%",
+                left: "50%",
+                transform: "translate(-50%, -50%)",
+                background: colors.cardBg,
+                border: `1px solid ${colors.border}`,
+                borderRadius: 16,
+                padding: 32,
+                maxWidth: 600,
+                width: "90%",
+                maxHeight: "90vh",
+                overflow: "auto",
+                zIndex: 51,
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+                <h2 style={{ fontSize: 20, fontWeight: 700, color: colors.text, margin: 0 }}>
+                  {modal.editing ? "Edit Event Type" : "Create Event Type"}
                 </h2>
-                <button onClick={closeModal} style={{background:"none",border:"none",fontSize:20,cursor:"pointer",color:"#898989",padding:4}}>✕</button>
+                <button
+                  onClick={closeModal}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    fontSize: 24,
+                    color: colors.textMuted,
+                    cursor: "pointer",
+                    padding: 0,
+                  }}
+                >
+                  ✕
+                </button>
               </div>
 
-              <div style={{display:"flex",flexDirection:"column",gap:16}}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                 {/* Title */}
-                <label style={s.label}>
-                  Titre
-                  <input className="modal-input" value={form.title} onChange={e => set("title", e.target.value)} placeholder="ex: Consultation 30 min" />
+                <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: colors.text }}>Title</span>
+                  <input
+                    value={form.title}
+                    onChange={(e) => set("title", e.target.value)}
+                    placeholder="e.g., 30-min Consultation"
+                    style={{
+                      padding: "10px 12px",
+                      borderRadius: 8,
+                      border: `1px solid ${colors.border}`,
+                      background: colors.bg,
+                      color: colors.text,
+                      fontSize: 14,
+                      outline: "none",
+                    }}
+                  />
                 </label>
 
                 {/* Slug */}
-                <label style={s.label}>
-                  Slug (URL)
-                  <input className="modal-input" value={form.slug} onChange={e => set("slug", e.target.value)} placeholder="ex: consultation-30min" />
+                <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: colors.text }}>Slug (URL)</span>
+                  <input
+                    value={form.slug}
+                    onChange={(e) => set("slug", e.target.value)}
+                    placeholder="e.g., consultation-30min"
+                    style={{
+                      padding: "10px 12px",
+                      borderRadius: 8,
+                      border: `1px solid ${colors.border}`,
+                      background: colors.bg,
+                      color: colors.text,
+                      fontSize: 14,
+                      outline: "none",
+                    }}
+                  />
                 </label>
 
                 {/* Description */}
-                <label style={s.label}>
-                  Description
-                  <textarea className="modal-input" value={form.description} onChange={e => set("description", e.target.value)} placeholder="Décrivez ce rendez-vous..." rows={2} style={{resize:"vertical"}} />
+                <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: colors.text }}>Description</span>
+                  <textarea
+                    value={form.description}
+                    onChange={(e) => set("description", e.target.value)}
+                    placeholder="Describe this event type..."
+                    rows={3}
+                    style={{
+                      padding: "10px 12px",
+                      borderRadius: 8,
+                      border: `1px solid ${colors.border}`,
+                      background: colors.bg,
+                      color: colors.text,
+                      fontSize: 14,
+                      outline: "none",
+                      resize: "vertical",
+                    }}
+                  />
                 </label>
 
-                <div style={{display:"flex",gap:12}}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                   {/* Length */}
-                  <label style={{...s.label,flex:1}}>
-                    Durée (min)
-                    <select className="modal-input" value={form.length} onChange={e => set("length", parseInt(e.target.value))}>
-                      {[15,30,45,60,90,120].map(v => <option key={v} value={v}>{v} min</option>)}
+                  <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: colors.text }}>Duration (min)</span>
+                    <select
+                      value={form.length}
+                      onChange={(e) => set("length", parseInt(e.target.value))}
+                      style={{
+                        padding: "10px 12px",
+                        borderRadius: 8,
+                        border: `1px solid ${colors.border}`,
+                        background: colors.bg,
+                        color: colors.text,
+                        fontSize: 14,
+                        outline: "none",
+                      }}
+                    >
+                      {[15, 30, 45, 60, 90, 120].map((v) => (
+                        <option key={v} value={v}>
+                          {v} min
+                        </option>
+                      ))}
                     </select>
                   </label>
 
                   {/* Location */}
-                  <label style={{...s.label,flex:1}}>
-                    Lieu
-                    <select className="modal-input" value={form.location} onChange={e => set("location", e.target.value)}>
-                      {LOCATIONS.map(l => <option key={l.value} value={l.value}>{l.icon} {l.label}</option>)}
+                  <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: colors.text }}>Location</span>
+                    <select
+                      value={form.location}
+                      onChange={(e) => set("location", e.target.value)}
+                      style={{
+                        padding: "10px 12px",
+                        borderRadius: 8,
+                        border: `1px solid ${colors.border}`,
+                        background: colors.bg,
+                        color: colors.text,
+                        fontSize: 14,
+                        outline: "none",
+                      }}
+                    >
+                      {LOCATIONS.map((l) => (
+                        <option key={l.value} value={l.value}>
+                          {l.label}
+                        </option>
+                      ))}
                     </select>
                   </label>
                 </div>
 
                 {/* Color */}
-                <label style={s.label}>
-                  Couleur
-                  <div style={{display:"flex",gap:8,marginTop:4}}>
-                    {COLORS.map(c => (
-                      <button key={c} onClick={() => set("color", c)} style={{
-                        width:32,height:32,borderRadius:8,background:c,
-                        border: form.color === c ? "3px solid #242424" : "3px solid transparent",
-                        cursor:"pointer", outline:"none", boxShadow: form.color === c ? "0 0 0 2px rgba(0,0,0,0.1)" : "none",
-                        transition:"all 0.1s"
-                      }} />
+                <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: colors.text }}>Color</span>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    {COLORS.map((c) => (
+                      <button
+                        key={c}
+                        onClick={() => set("color", c)}
+                        style={{
+                          width: 32,
+                          height: 32,
+                          borderRadius: 8,
+                          background: c,
+                          border: form.color === c ? `3px solid ${colors.accent}` : "3px solid transparent",
+                          cursor: "pointer",
+                          outline: "none",
+                          transition: "all 0.2s",
+                        }}
+                      />
                     ))}
                   </div>
                 </label>
 
-                <div style={{borderTop:"1px solid rgba(0,0,0,0.06)",margin:"4px 0"}} />
-
-                {/* ── Horaire lié ── */}
-                <div style={{fontSize:13,fontWeight:600,color:"#6b7280",textTransform:"uppercase",letterSpacing:"0.5px"}}>Horaire</div>
-
-                <label style={s.label}>
-                  Horaire utilisé pour ce type de rendez-vous
-                  <select className="modal-input" value={form.scheduleId} onChange={e => set("scheduleId", e.target.value)}>
-                    <option value="">Horaire par défaut</option>
-                    {schedules.map((sc: any) => (
-                      <option key={sc.id} value={sc.id}>{sc.name || `Horaire #${sc.id}`}</option>
-                    ))}
-                  </select>
-                  <span style={{fontSize:11,color:"#898989"}}>Choisissez quel horaire définit les disponibilités pour ce type</span>
-                </label>
-
-                <div style={{borderTop:"1px solid rgba(0,0,0,0.06)",margin:"4px 0"}} />
-
-                {/* ── Defensive scheduling ── */}
-                <div style={{fontSize:13,fontWeight:600,color:"#6b7280",textTransform:"uppercase",letterSpacing:"0.5px"}}>Protection d'horaire</div>
-
-                <div style={{display:"flex",gap:12}}>
-                  <label style={{...s.label,flex:1}}>
-                    Tampon avant (min)
-                    <input className="modal-input" type="number" min={0} max={120} value={form.bufferBefore} onChange={e => set("bufferBefore", parseInt(e.target.value) || 0)} />
-                    <span style={{fontSize:11,color:"#898989"}}>Temps bloqué avant le rdv</span>
-                  </label>
-                  <label style={{...s.label,flex:1}}>
-                    Tampon après (min)
-                    <input className="modal-input" type="number" min={0} max={120} value={form.bufferAfter} onChange={e => set("bufferAfter", parseInt(e.target.value) || 0)} />
-                    <span style={{fontSize:11,color:"#898989"}}>Temps bloqué après le rdv</span>
-                  </label>
-                </div>
-
-                <div style={{display:"flex",gap:12}}>
-                  <label style={{...s.label,flex:1}}>
-                    Maximum par jour
-                    <input className="modal-input" type="number" min={1} max={50} value={form.maxPerDay} onChange={e => set("maxPerDay", e.target.value)} placeholder="Illimité" />
-                    <span style={{fontSize:11,color:"#898989"}}>Laisser vide = illimité</span>
-                  </label>
-                  <label style={{...s.label,flex:1}}>
-                    Prix ($ CAD)
-                    <input className="modal-input" type="number" min={0} step={0.01} value={(form.price/100).toFixed(2)} onChange={e => set("price", Math.round(parseFloat(e.target.value || "0") * 100))} placeholder="0.00" />
-                    <span style={{fontSize:11,color:"#898989"}}>0 = gratuit</span>
-                  </label>
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div style={{display:"flex",justifyContent:"space-between",marginTop:24,paddingTop:20,borderTop:"1px solid rgba(0,0,0,0.06)"}}>
-                <div>
-                  {modal.editing && (
-                    <button onClick={() => { remove(modal.editing); closeModal(); }} style={{background:"none",border:"none",color:"#dc2626",fontSize:13,cursor:"pointer",padding:"8px 0"}}>
-                      🗑 Supprimer
-                    </button>
-                  )}
-                </div>
-                <div style={{display:"flex",gap:8}}>
-                  <button onClick={closeModal} style={s.secondaryBtn}>Annuler</button>
-                  <button onClick={save} disabled={saving || !form.title.trim()} style={{...s.primaryBtn,opacity: saving||!form.title.trim() ? 0.5 : 1}}>
-                    {saving ? "Enregistrement..." : modal.editing ? "Mettre à jour" : "Créer"}
+                {/* Actions */}
+                <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 24, paddingTop: 24, borderTop: `1px solid ${colors.border}` }}>
+                  <button
+                    onClick={closeModal}
+                    style={{
+                      padding: "10px 18px",
+                      background: "transparent",
+                      border: `1px solid ${colors.border}`,
+                      borderRadius: 8,
+                      color: colors.text,
+                      cursor: "pointer",
+                      fontWeight: 600,
+                      fontSize: 14,
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={save}
+                    disabled={saving || !form.title.trim()}
+                    style={{
+                      padding: "10px 18px",
+                      background: colors.accent,
+                      color: colors.accentText,
+                      border: "none",
+                      borderRadius: 8,
+                      cursor: "pointer",
+                      fontWeight: 600,
+                      fontSize: 14,
+                      opacity: saving || !form.title.trim() ? 0.5 : 1,
+                    }}
+                  >
+                    {saving ? "Saving..." : modal.editing ? "Update" : "Create"}
                   </button>
                 </div>
               </div>
             </div>
-
-            <style href="event-type-modal">{`
-              .modal-input {
-                width: 100%; box-sizing: border-box;
-                padding: 10px 12px; border-radius: 8px;
-                border: 1px solid rgba(0,0,0,0.12);
-                font-size: 14px; font-family: 'Inter', sans-serif;
-                outline: none; margin-top: 4px;
-                background: #fff; transition: border-color 0.15s;
-              }
-              .modal-input:focus { border-color: #242424; }
-              textarea.modal-input { min-height: 60px; }
-              select.modal-input { cursor: pointer; }
-            `}</style>
           </>
         )}
-
-        <style href="event-types-hover">{`
-          .card-hover:hover { background: #f9fafb; border-color: rgba(0,0,0,0.08); }
-        `}</style>
       </div>
-    </div>
+    </DashboardLayout>
   );
 }
-
-const s: Record<string, React.CSSProperties> = {
-  page: { display: "flex", minHeight: "100vh", fontFamily: "'Inter',system-ui,sans-serif",color:"#242424",background:"#fff",position:"relative",zIndex:1,flexWrap:"wrap" },
-  sidebar: { width: 220, padding: "20px 16px", borderRight: "1px solid rgba(0,0,0,0.04)", display: "flex", flexDirection: "column", flexShrink: 0 },
-  content: { flex: 1, padding: "24px 16px 80px", maxWidth: 800 },
-  primaryBtn: { padding:"10px 20px",borderRadius:9999,background:"#242424",color:"#fff",border:"none",fontSize:14,fontWeight:600,cursor:"pointer",fontFamily:"'Inter',sans-serif" },
-  secondaryBtn: { padding:"10px 20px",borderRadius:9999,background:"#fff",color:"#242424",border:"1px solid rgba(0,0,0,0.12)",fontSize:14,fontWeight:600,cursor:"pointer",fontFamily:"'Inter',sans-serif" },
-  chipBtn: { fontSize:12,color:"#242424",background:"#f9fafb",border:"1px solid rgba(0,0,0,0.08)",padding:"6px 12px",borderRadius:9999,cursor:"pointer",fontFamily:"'Inter',sans-serif" },
-  label: { display:"flex",flexDirection:"column",fontSize:13,fontWeight:600,color:"#242424",gap:2 },
-  backdrop: { position:"fixed",inset:0,background:"rgba(0,0,0,0.3)",zIndex:100,backdropFilter:"blur(2px)" },
-  modal: { position:"fixed",top:"50%",left:"50%",transform:"translate(-50%,-50%)",background:"#fff",borderRadius:16,padding:"28px 32px",width:560,maxHeight:"85vh",overflowY:"auto",zIndex:101,boxShadow:"0 20px 60px rgba(0,0,0,0.15)" },
-};
