@@ -1,12 +1,29 @@
 "use client";
 
 import { useState, useEffect, use } from "react";
+import { ChevronLeft, ChevronRight, Clock, MapPin, AlertCircle, CheckCircle } from "lucide-react";
 
 interface EventType {
   id: string; title: string; slug: string; description: string;
   length: number; location: string; price: number; currency: string;
   user: { name: string; username: string; timeZone: string };
 }
+
+// Brand colors
+const colors = {
+  bg: "#1a1008",
+  bg2: "#241810",
+  text: "#e8d5c4",
+  textMuted: "#c4a882",
+  accent: "#c47f3a",
+  accentHover: "#d4944e",
+  accentText: "#1a1008",
+  border: "rgba(196,127,58,0.12)",
+  cardBg: "#241810",
+  success: "#c47f3a",
+  gold: "#d4a853",
+  dimText: "#6b5040",
+};
 
 export default function BookingPage({ params }: { params: Promise<{ username: string; eventSlug: string }> }) {
   const { username, eventSlug } = use(params);
@@ -35,32 +52,28 @@ export default function BookingPage({ params }: { params: Promise<{ username: st
   useEffect(() => { try { setTimeZone(Intl.DateTimeFormat().resolvedOptions().timeZone); } catch {} }, []);
 
   useEffect(() => {
-    // Handle Stripe return
     const q = new URLSearchParams(window.location.search);
     if (q.get("booking") === "success") { setBooking({ status: "paid", guestName: form.name || "", eventTypeTitle: eventType?.title || "" }); window.history.replaceState({}, "", `/${username}/${eventSlug}`); return; }
-    if (q.get("booking") === "cancelled") { setError("Paiement annulé."); window.history.replaceState({}, "", `/${username}/${eventSlug}`); return; }
+    if (q.get("booking") === "cancelled") { setError("Payment cancelled."); window.history.replaceState({}, "", `/${username}/${eventSlug}`); return; }
   }, [username, eventSlug, eventType]);
 
-  // Fetch event type by username + slug
   useEffect(() => {
     fetch(`/api/v2/me?username=${username}`)
       .then(r => r.json())
       .then(user => {
-        if (user.error) { setError("Utilisateur introuvable."); setLoading(false); return; }
-        // Fetch event types for this user
+        if (user.error) { setError("User not found."); setLoading(false); return; }
         return fetch(`/api/v2/event-types?userId=${user.id}`);
       })
       .then(r => r?.json())
       .then(data => {
         const et = data?.data?.find((e: any) => e.slug === eventSlug);
         if (et) setEventType({ ...et, user: { name: et.user?.name || username, username, timeZone: et.user?.timeZone || "America/Toronto" } });
-        else setError("Ce type de rendez-vous n'existe pas.");
+        else setError("Event type not found.");
       })
-      .catch(() => setError("Erreur de chargement."))
+      .catch(() => setError("Error loading event."))
       .finally(() => setLoading(false));
   }, [username, eventSlug]);
 
-  // Fetch available days
   useEffect(() => {
     if (!eventType) return;
     const y = currentMonth.getFullYear(), m = currentMonth.getMonth();
@@ -69,7 +82,6 @@ export default function BookingPage({ params }: { params: Promise<{ username: st
       .then(r => r.json()).then(d => setAvailableDays(new Set(Object.keys(d.data || {})))).catch(() => {});
   }, [currentMonth, eventType, timeZone]);
 
-  // Fetch slots for selected date
   useEffect(() => {
     if (!eventType || !date) { setSlots([]); return; }
     setLoadingSlots(true);
@@ -99,7 +111,7 @@ export default function BookingPage({ params }: { params: Promise<{ username: st
       });
       setSubmitting(false);
       if (res.ok) { const json = await res.json(); window.location.href = json.data.checkoutUrl; }
-      else { const err = await res.json(); setError(err.error || "Erreur de paiement."); }
+      else { const err = await res.json(); setError(err.error || "Payment error."); }
       return;
     }
 
@@ -108,150 +120,288 @@ export default function BookingPage({ params }: { params: Promise<{ username: st
       body: JSON.stringify({ start: startISO, eventTypeId: eventType!.id, attendee: { name: form.name, email: form.email, timeZone }, metadata: { notes: form.notes } }),
     });
     setSubmitting(false);
-    if (res.status === 409) { setError("Ce créneau n'est plus disponible."); setSelectedSlot(""); return; }
+    if (res.status === 409) { setError("This slot is no longer available."); setSelectedSlot(""); return; }
     if (res.ok) {
       const json = await res.json(); const b = json.data;
       setBooking({ status: "confirmed", uid: b.uid, guestName: b.attendees?.[0]?.name || form.name, meetingUrl: b.meetingUrl, start: b.start, end: b.end, eventTypeTitle: eventType?.title });
-    } else setError("Erreur lors de la réservation.");
+    } else setError("Booking error.");
   }
 
   const y = currentMonth.getFullYear(), m = currentMonth.getMonth();
   const firstDay = new Date(y, m, 1).getDay(), firstDayMon = firstDay === 0 ? 6 : firstDay - 1;
   const daysInMonth = new Date(y, m + 1, 0).getDate();
   const today = new Date().toISOString().split("T")[0];
-  const monthNames = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
+  const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
   const dk = (d: number) => `${y}-${String(m+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
   const nav = (dir: number) => { setCurrentMonth(new Date(y, m + dir, 1)); setDate(""); setSelectedSlot(""); setSlots([]); };
-  const locIcon = eventType?.location === "google-meet" ? "📹 Google Meet" : eventType?.location === "phone" ? "📞 Téléphone" : eventType?.location === "zoom" ? "📹 Zoom" : eventType?.location === "teams" ? "📹 Teams" : "📍 En personne";
+  const locIcon = eventType?.location === "google-meet" ? "📹" : eventType?.location === "phone" ? "📞" : eventType?.location === "zoom" ? "📹" : eventType?.location === "teams" ? "📹" : "📍";
+  const locLabel = eventType?.location === "google-meet" ? "Google Meet" : eventType?.location === "phone" ? "Phone" : eventType?.location === "zoom" ? "Zoom" : eventType?.location === "teams" ? "Teams" : "In Person";
   const ALL_TIMEZONES: string[] = typeof Intl !== 'undefined' && (Intl as any).supportedValuesOf
     ? (Intl as any).supportedValuesOf('timeZone')
     : ['America/Toronto','America/New_York','America/Vancouver','Europe/Paris'];
 
   if (booking?.status === "confirmed" || booking?.status === "paid") {
     const sd = booking.start ? new Date(booking.start) : null;
-    const ed = booking.end ? new Date(booking.end) : null;
     return (
-      <div style={{ maxWidth: 480, margin: "0 auto", padding: isMobile ? "40px 16px" : "60px 24px", textAlign: "center", fontFamily: "'Inter',sans-serif", minHeight: "100vh", background: "#fff", position: "relative", zIndex: 1 }}>
-        <div style={{ width: 64, height: 64, borderRadius: "50%", background: booking.status === "paid" ? "#fef3c7" : "#ecfdf5", color: booking.status === "paid" ? "#92400e" : "#059669", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 28, fontWeight: 700, marginBottom: 20 }}>{booking.status === "paid" ? "💳" : "✓"}</div>
-        <h2 style={{ fontFamily: "'Cal Sans',sans-serif", fontSize: isMobile ? 20 : 24, fontWeight: 700 }}>{booking.status === "paid" ? "Paiement réussi!" : "Rendez-vous confirmé!"}</h2>
-        <p style={{ color: "#898989", fontSize: 15 }}>{booking.eventTypeTitle || eventType?.title}<br/>{sd?.toLocaleDateString("fr-CA", { weekday:"long",day:"numeric",month:"long" })}</p>
-        {booking.meetingUrl && <a href={booking.meetingUrl} target="_blank" style={{ display:"inline-block",marginBottom:16,padding:"10px 20px",background:"#ecfdf5",color:"#059669",borderRadius:8,textDecoration:"none",fontSize:14,fontWeight:600 }}>📹 Rejoindre la réunion →</a>}
-        <p style={{ fontSize:13,color:"#898989",margin:"16px 0" }}>Confirmation envoyée à {form.email}.</p>
-        {booking.uid && (
-          <div style={{marginTop:20, display:'flex', gap:20, justifyContent:'center', flexWrap:'wrap'}}>
-            <a href={`/booking/${booking.uid}/reschedule`} style={{fontSize:13, color:'#c8a96e', textDecoration:'none'}}>🔄 Reprogrammer</a>
-            <a href={`/booking/${booking.uid}/cancel`} style={{fontSize:13, color:'#8a7a60', textDecoration:'none'}}>✕ Annuler</a>
+      <div style={{ minHeight: "100vh", background: colors.bg, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px", fontFamily: "'Inter', sans-serif" }}>
+        <div style={{ background: colors.cardBg, borderRadius: "12px", border: `1px solid ${colors.border}`, padding: "32px", textAlign: "center", maxWidth: "480px", width: "100%" }}>
+          <div style={{ width: "64px", height: "64px", borderRadius: "50%", background: booking.status === "paid" ? "rgba(212,168,83,0.15)" : "rgba(196,127,58,0.15)", color: booking.status === "paid" ? colors.gold : colors.accent, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: "28px", fontWeight: "700", marginBottom: "20px" }}>
+            {booking.status === "paid" ? "💳" : "✓"}
           </div>
-        )}
-        <a href={`/${username}/${eventSlug}`} style={{ display:"inline-block",padding:"12px 24px",borderRadius:8,border:"1px solid rgba(0,0,0,0.12)",color:"#242424",textDecoration:"none",fontSize:14,fontWeight:600,marginTop:16 }}>Réserver un autre</a>
+          <h2 style={{ fontSize: "24px", fontWeight: "700", color: colors.text, marginBottom: "8px", fontFamily: "'Cal Sans', 'Inter', sans-serif" }}>
+            {booking.status === "paid" ? "Payment Successful!" : "Booking Confirmed!"}
+          </h2>
+          <p style={{ color: colors.textMuted, fontSize: "15px", marginBottom: "16px" }}>
+            <span style={{ fontWeight: "600" }}>{booking.eventTypeTitle || eventType?.title}</span><br/>
+            <span style={{ fontSize: "14px" }}>{sd?.toLocaleDateString("en-US", { weekday:"long",day:"numeric",month:"long" })}</span>
+          </p>
+          {booking.meetingUrl && (
+            <a href={booking.meetingUrl} target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", marginBottom: "16px", padding: "10px 20px", background: "rgba(196,127,58,0.15)", color: colors.accent, borderRadius: "8px", textDecoration: "none", fontSize: "14px", fontWeight: "600", transition: "all 0.2s" }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(196,127,58,0.25)")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(196,127,58,0.15)")}
+            >
+              📹 Join Meeting →
+            </a>
+          )}
+          <p style={{ fontSize: "13px", color: colors.dimText, marginBottom: "24px" }}>Confirmation sent to {form.email}.</p>
+          {booking.uid && (
+            <div style={{ display: "flex", gap: "16px", justifyContent: "center", marginBottom: "24px", flexWrap: "wrap" }}>
+              <a href={`/booking/${booking.uid}/reschedule`} style={{ fontSize: "13px", color: colors.accent, fontWeight: "600", textDecoration: "none", transition: "color 0.2s" }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = colors.accentHover)}
+                onMouseLeave={(e) => (e.currentTarget.style.color = colors.accent)}
+              >🔄 Reschedule</a>
+              <a href={`/booking/${booking.uid}/cancel`} style={{ fontSize: "13px", color: colors.dimText, fontWeight: "600", textDecoration: "none", transition: "color 0.2s" }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = colors.textMuted)}
+                onMouseLeave={(e) => (e.currentTarget.style.color = colors.dimText)}
+              >✕ Cancel</a>
+            </div>
+          )}
+          <a href={`/${username}/${eventSlug}`} style={{ display: "inline-block", padding: "12px 24px", borderRadius: "8px", border: `1px solid ${colors.border}`, color: colors.text, textDecoration: "none", fontSize: "14px", fontWeight: "600", transition: "all 0.2s" }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(196,127,58,0.08)")}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+          >
+            Book Another
+          </a>
+        </div>
       </div>
     );
   }
 
-  if (loading) return <div style={{ minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"#fff",position:"relative",zIndex:1 }}><p style={{color:"#898989"}}>Chargement...</p></div>;
-  if (error || !eventType) return <div style={{ minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"#fff",position:"relative",zIndex:1 }}><p style={{color:"#dc2626"}}>{error || "Type introuvable"}</p></div>;
+  if (loading) return (
+    <div style={{ minHeight: "100vh", background: colors.bg, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px", fontFamily: "'Inter', sans-serif" }}>
+      <div style={{ textAlign: "center" }}>
+        <div style={{ width: "48px", height: "48px", borderRadius: "50%", border: `3px solid ${colors.border}`, borderTopColor: colors.accent, margin: "0 auto 16px", animation: "spin 1s linear infinite" }} />
+        <p style={{ color: colors.textMuted }}>Loading availability...</p>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    </div>
+  );
+
+  if (error || !eventType) return (
+    <div style={{ minHeight: "100vh", background: colors.bg, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px", fontFamily: "'Inter', sans-serif" }}>
+      <div style={{ background: colors.cardBg, borderRadius: "12px", border: `1px solid ${colors.border}`, padding: "32px", textAlign: "center", maxWidth: "480px", width: "100%" }}>
+        <AlertCircle style={{ width: "48px", height: "48px", color: colors.accent, margin: "0 auto 16px" }} />
+        <p style={{ color: colors.text, fontWeight: "600" }}>{error || "Event not found"}</p>
+      </div>
+    </div>
+  );
 
   return (
-    <div style={{ maxWidth: 960, margin: "0 auto", padding: isMobile ? "20px 12px 60px" : "40px 24px 80px", fontFamily: "'Inter',sans-serif", color: "#242424", background: "#fff", minHeight: "100vh", position: "relative", zIndex: 1 }}>
-      <div style={{ display: "flex", gap: isMobile ? 24 : 48, alignItems: "flex-start", flexDirection: isMobile ? "column" : "row" }}>
-        {/* Host panel */}
-        <div style={{ flex: isMobile ? "unset" : "0 0 260px", width: isMobile ? "100%" : undefined }}>
-          <div style={{ width:48,height:48,borderRadius:"50%",background:"#242424",color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,fontWeight:700,marginBottom:12 }}>{eventType.user.name[0]}</div>
-          <div style={{ fontSize: isMobile ? 14 : 15,fontWeight:600,marginBottom:4 }}>{eventType.user.name}</div>
-          <h1 style={{ fontFamily:"'Cal Sans',sans-serif",fontSize: isMobile ? 18 : 22,fontWeight:700,margin:"0 0 4px" }}>{eventType.title}</h1>
-          <p style={{ fontSize: 13, color: "#898989", marginBottom: 12 }}>avec {eventType.user.name}</p>
-          {eventType && (
-            <div style={{ display:'flex', gap:8, marginBottom:16, flexWrap:'wrap' }}>
-              {[15, 30, 45, 60].map(d => (
-                <span key={d} style={{
-                  padding: isMobile ? '4px 10px' : '5px 14px', borderRadius:9999,
-                  border: d === eventType.length ? '1.5px solid #c8a96e' : '1px solid rgba(200,169,110,0.15)',
-                  color: d === eventType.length ? '#c8a96e' : '#6a5a40',
-                  fontSize: isMobile ? 12 : 13, fontWeight: d === eventType.length ? 600 : 400,
-                  background: d === eventType.length ? 'rgba(200,169,110,0.08)' : 'transparent',
-                }}>{d === 60 ? '1h' : `${d}m`}</span>
-              ))}
-            </div>
-          )}
-          <div style={{ display:"flex",gap:6,flexWrap:"wrap",marginBottom:16 }}>
-            <span style={{ fontSize: isMobile ? 12 : 13,color:"#6b7280",background:"#f9fafb",padding: isMobile ? "4px 10px" : "5px 12px",borderRadius:8 }}>🕐 {eventType.length} min</span>
-            <span style={{ fontSize: isMobile ? 12 : 13,color:"#6b7280",background:"#f9fafb",padding: isMobile ? "4px 10px" : "5px 12px",borderRadius:8 }}>{locIcon}</span>
-            <div style={{position:"relative"}}>
-              <span style={{ fontSize: isMobile ? 12 : 13,color:"#6b7280",background:"#f9fafb",padding: isMobile ? "4px 10px" : "5px 12px",borderRadius:8,display:"inline-flex",alignItems:"center",gap:4 }}>
-                🌍
-                <select value={timeZone} onChange={e => setTimeZone(e.target.value)} style={{ fontSize: isMobile ? 12 : 13,color:"#6b7280",background:"transparent",border:"none",outline:"none",cursor:"pointer",fontFamily:"'Inter',sans-serif",padding:0,maxWidth: isMobile ? 110 : 140 }}>
+    <div style={{ minHeight: "100vh", background: colors.bg, padding: "32px 16px", fontFamily: "'Inter', sans-serif" }}>
+      <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 2fr", gap: "32px" }}>
+          {/* Left Panel - Event Details */}
+          <div>
+            <div style={{ background: colors.cardBg, borderRadius: "12px", border: `1px solid ${colors.border}`, padding: "24px", position: isMobile ? "relative" : "sticky", top: isMobile ? "auto" : "32px" }}>
+              {/* Host Avatar */}
+              <div style={{ width: "56px", height: "56px", borderRadius: "50%", background: `linear-gradient(135deg, ${colors.gold}, ${colors.accent})`, color: colors.accentText, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "20px", fontWeight: "700", marginBottom: "16px", fontFamily: "'Cal Sans', 'Inter', sans-serif" }}>
+                {eventType.user.name[0]}
+              </div>
+              
+              {/* Host Info */}
+              <p style={{ fontSize: "14px", color: colors.textMuted, marginBottom: "4px", margin: "0 0 4px" }}>{eventType.user.name}</p>
+              <h1 style={{ fontSize: "22px", fontWeight: "700", color: colors.text, marginBottom: "8px", margin: "0 0 8px", fontFamily: "'Cal Sans', 'Inter', sans-serif" }}>{eventType.title}</h1>
+              <p style={{ fontSize: "13px", color: colors.dimText, marginBottom: "16px", margin: "0 0 16px" }}>with {eventType.user.name}</p>
+
+              {/* Duration Badges */}
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginBottom: "16px" }}>
+                {[15, 30, 45, 60].map(d => (
+                  <span key={d} style={{ padding: "6px 12px", borderRadius: "9999px", fontSize: "12px", fontWeight: d === eventType.length ? "600" : "400", background: d === eventType.length ? "rgba(196,127,58,0.15)" : "rgba(196,127,58,0.08)", color: d === eventType.length ? colors.accent : colors.dimText, border: d === eventType.length ? `1px solid ${colors.accent}` : `1px solid ${colors.border}` }}>
+                    {d === 60 ? '1h' : `${d}m`}
+                  </span>
+                ))}
+              </div>
+
+              {/* Event Details */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "24px", paddingBottom: "24px", borderBottom: `1px solid ${colors.border}` }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "14px", color: colors.text }}>
+                  <Clock style={{ width: "16px", height: "16px", color: colors.dimText }} />
+                  <span>{eventType.length} minutes</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "14px", color: colors.text }}>
+                  <MapPin style={{ width: "16px", height: "16px", color: colors.dimText }} />
+                  <span>{locLabel}</span>
+                </div>
+                {eventType.price > 0 && (
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "14px", fontWeight: "600", color: colors.accent, background: "rgba(196,127,58,0.15)", padding: "8px 12px", borderRadius: "8px" }}>
+                    💳 {(eventType.price/100).toFixed(2)} {eventType.currency.toUpperCase()}
+                  </div>
+                )}
+              </div>
+
+              {/* Timezone Selector */}
+              <div style={{ marginBottom: "16px" }}>
+                <label style={{ fontSize: "12px", fontWeight: "600", color: colors.textMuted, display: "block", marginBottom: "8px" }}>Timezone</label>
+                <select value={timeZone} onChange={e => setTimeZone(e.target.value)} style={{ width: "100%", padding: "8px 12px", border: `1px solid ${colors.border}`, borderRadius: "8px", background: colors.bg, color: colors.text, fontSize: "13px", fontFamily: "'Inter', sans-serif", outline: "none", cursor: "pointer" }}>
                   {ALL_TIMEZONES.map(tz => (
-                    <option key={tz} value={tz}>{tz}</option>
+                    <option key={tz} value={tz} style={{ background: colors.bg, color: colors.text }}>{tz}</option>
                   ))}
                 </select>
-              </span>
-            </div>
-            {eventType.price > 0 && <span style={{ fontSize: isMobile ? 12 : 13,background:"#fef3c7",color:"#92400e",fontWeight:700,padding: isMobile ? "4px 10px" : "5px 12px",borderRadius:8 }}>{(eventType.price/100).toFixed(2)} {eventType.currency.toUpperCase()}</span>}
-          </div>
-          {eventType.description && <p style={{ fontSize: isMobile ? 13 : 14,color:"#6b7280",lineHeight:1.6 }}>{eventType.description}</p>}
-        </div>
+              </div>
 
-        {/* Calendar + slots */}
-        <div style={{ flex: 1, minWidth: isMobile ? "unset" : 300, width: isMobile ? "100%" : undefined, background: "#fff", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 16, padding: isMobile ? 16 : 28 }}>
-          <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14 }}>
-            <span style={{ fontSize: isMobile ? 13 : 14,fontWeight:600 }}>{monthNames[m]} {y}</span>
-            <div style={{ display:"flex",gap:4 }}>
-              <button onClick={() => nav(-1)} style={{ width:28,height:28,borderRadius:7,border:"1px solid rgba(0,0,0,0.1)",background:"#fff",cursor:"pointer",fontSize:14 }}>‹</button>
-              <button onClick={() => nav(1)} style={{ width:28,height:28,borderRadius:7,border:"1px solid rgba(0,0,0,0.1)",background:"#fff",cursor:"pointer",fontSize:14 }}>›</button>
-            </div>
-          </div>
-          <div style={{ display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4,marginBottom:16 }}>
-            {["Lun","Mar","Mer","Jeu","Ven","Sam","Dim"].map(d => <div key={d} style={{ fontSize: isMobile ? 10 : 11,color:"#898989",textAlign:"center",paddingBottom:4,fontWeight:500 }}>{d}</div>)}
-            {Array.from({length: firstDayMon}, (_,i) => <div key={`e${i}`} />)}
-            {Array.from({length: daysInMonth}, (_,i) => {
-              const day = i+1, key = dk(day), past = key < today, avail = availableDays.has(key), sel = key === date;
-              return (
-                <button key={day} disabled={past} onClick={() => { setDate(key); setSelectedSlot(""); setError(""); }}
-                  style={{ padding: isMobile ? "6px 0" : "8px 0",borderRadius:8,border:sel?"2px solid #242424":"none",background:sel?"#242424":avail?"#f0fdf4":past?"transparent":"#fff",color:sel?"#fff":past?"#d1d5db":avail?"#059669":"#242424",fontWeight:avail||sel?600:400,fontSize: isMobile ? 12 : 13,cursor:past?"default":"pointer",fontFamily:"'Inter',sans-serif" }}>
-                  {day}
-                </button>
-              );
-            })}
-          </div>
-          {date && (
-            <div>
-              <div style={{ fontSize: isMobile ? 11 : 12,fontWeight:600,color:"#898989",marginBottom:10 }}>{new Date(date+"T00:00:00").toLocaleDateString("fr-CA",{weekday:"long",day:"numeric",month:"long"})}</div>
-              {loadingSlots ? <p style={{ color:"#898989",fontSize:13 }}>Chargement...</p> : slots.length === 0 ? <p style={{ color:"#898989",fontSize:13 }}>Aucun créneau.</p> : (
-                <div style={{ display:"grid", gridTemplateColumns: isMobile ? "repeat(2,1fr)" : "repeat(3,1fr)", gap:6 }}>
-                  {slots.map(s => (
-                    <button key={s.time} onClick={() => setSelectedSlot(s.time)}
-                      style={{ padding: isMobile ? "7px 6px" : "8px 12px",borderRadius:8,border:selectedSlot===s.time?"2px solid #242424":"1px solid rgba(0,0,0,0.08)",background:selectedSlot===s.time?"#242424":"#fff",color:selectedSlot===s.time?"#fff":"#242424",fontSize: isMobile ? 12 : 13,fontWeight:500,cursor:"pointer",fontFamily:"'Inter',sans-serif" }}>{s.time}</button>
-                  ))}
-                </div>
+              {/* Description */}
+              {eventType.description && (
+                <p style={{ fontSize: "13px", color: colors.textMuted, lineHeight: "1.6", margin: 0 }}>{eventType.description}</p>
               )}
             </div>
-          )}
-          {selectedSlot && (
-            <form onSubmit={handleBook} style={{ marginTop: 24 }}>
-              <div style={{ fontSize: isMobile ? 13 : 14,fontWeight:600,marginBottom:10 }}>Vos informations</div>
-              <input style={isMobile ? mobileInputStyle : inputStyle} placeholder="Votre nom" value={form.name} onChange={e => setForm({...form,name:e.target.value})} required />
-              <input style={isMobile ? mobileInputStyle : inputStyle} type="email" placeholder="Votre courriel" value={form.email} onChange={e => setForm({...form,email:e.target.value})} required />
-              <textarea style={isMobile ? mobileInputStyle : inputStyle} placeholder="Notes (optionnel)" value={form.notes} onChange={e => setForm({...form,notes:e.target.value})} rows={2} />
-              {error && <p style={{ color:"#dc2626",fontSize:13 }}>{error}</p>}
-              <button type="submit" disabled={submitting} style={{ width:"100%",padding: isMobile ? 12 : 14,borderRadius:8,border:"none",background:"#242424",color:"#fff",fontSize: isMobile ? 14 : 15,fontWeight:600,cursor:"pointer",fontFamily:"'Inter',sans-serif" }}>
-                {submitting ? "Réservation..." : eventType!.price > 0 ? `Payer ${(eventType!.price/100).toFixed(0)}$ · Confirmer` : "Confirmer le rendez-vous"}
-              </button>
-            </form>
-          )}
+          </div>
+
+          {/* Right Panel - Calendar & Booking */}
+          <div>
+            <div style={{ background: colors.cardBg, borderRadius: "12px", border: `1px solid ${colors.border}`, overflow: "hidden" }}>
+              {/* Calendar Header */}
+              <div style={{ padding: "16px 24px", borderBottom: `1px solid ${colors.border}`, background: "rgba(196,127,58,0.08)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <h2 style={{ fontSize: "18px", fontWeight: "600", color: colors.text, margin: 0 }}>{monthNames[m]} {y}</h2>
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <button onClick={() => nav(-1)} style={{ padding: "8px", background: "transparent", border: "none", borderRadius: "8px", cursor: "pointer", color: colors.textMuted", display: "flex", alignItems: "center", transition: "all 0.2s" }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(196,127,58,0.1)")}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                  >
+                    <ChevronLeft style={{ width: "20px", height: "20px" }} />
+                  </button>
+                  <button onClick={() => nav(1)} style={{ padding: "8px", background: "transparent", border: "none", borderRadius: "8px", cursor: "pointer", color: colors.textMuted, display: "flex", alignItems: "center", transition: "all 0.2s" }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(196,127,58,0.1)")}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                  >
+                    <ChevronRight style={{ width: "20px", height: "20px" }} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Calendar Grid */}
+              <div style={{ padding: "24px" }}>
+                {/* Day Headers */}
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "8px", marginBottom: "16px" }}>
+                  {["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map(d => (
+                    <div key={d} style={{ textAlign: "center", fontSize: "12px", fontWeight: "600", color: colors.dimText", paddingBottom: "8px" }}>
+                      {d}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Calendar Days */}
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "8px", marginBottom: "24px" }}>
+                  {Array.from({length: firstDayMon}, (_,i) => <div key={`e${i}`} />)}
+                  {Array.from({length: daysInMonth}, (_,i) => {
+                    const day = i+1, key = dk(day), past = key < today, avail = availableDays.has(key), sel = key === date;
+                    return (
+                      <button key={day} disabled={past} onClick={() => { setDate(key); setSelectedSlot(""); setError(""); }}
+                        style={{ padding: "12px 8px", borderRadius: "8px", fontWeight: sel || avail ? "600" : "400", fontSize: "14px", cursor: past ? "not-allowed" : "pointer", fontFamily: "'Inter', sans-serif", border: sel ? `2px solid ${colors.accent}` : `1px solid ${colors.border}`, background: sel ? colors.accent : avail ? "rgba(196,127,58,0.15)" : past ? "transparent" : colors.bg, color: sel ? colors.accentText : past ? colors.dimText : avail ? colors.accent : colors.text, transition: "all 0.2s", opacity: past ? 0.5 : 1 }}
+                        onMouseEnter={(e) => !past && !sel && (e.currentTarget.style.background = "rgba(196,127,58,0.1)")}
+                        onMouseLeave={(e) => !past && !sel && (e.currentTarget.style.background = avail ? "rgba(196,127,58,0.15)" : colors.bg)}
+                      >
+                        {day}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Time Slots */}
+                {date && (
+                  <div style={{ borderTop: `1px solid ${colors.border}`, paddingTop: "24px" }}>
+                    <h3 style={{ fontSize: "14px", fontWeight: "600", color: colors.text, marginBottom: "16px", margin: "0 0 16px" }}>
+                      {new Date(date+"T00:00:00").toLocaleDateString("en-US",{weekday:"long",day:"numeric",month:"long"})}
+                    </h3>
+                    {loadingSlots ? (
+                      <div style={{ textAlign: "center", paddingBottom: "32px" }}>
+                        <div style={{ width: "32px", height: "32px", borderRadius: "50%", border: `3px solid ${colors.border}`, borderTopColor: colors.accent, margin: "0 auto 8px", animation: "spin 1s linear infinite" }} />
+                        <p style={{ color: colors.textMuted, fontSize: "14px", margin: 0 }}>Loading times...</p>
+                      </div>
+                    ) : slots.length === 0 ? (
+                      <p style={{ color: colors.textMuted, fontSize: "14px", paddingBottom: "16px", margin: 0 }}>No available times for this date.</p>
+                    ) : (
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(80px, 1fr))", gap: "8px" }}>
+                        {slots.map(s => (
+                          <button key={s.time} onClick={() => setSelectedSlot(s.time)}
+                            style={{ padding: "8px 12px", borderRadius: "8px", fontSize: "14px", fontWeight: selectedSlot === s.time ? "600" : "400", cursor: "pointer", fontFamily: "'Inter', sans-serif", border: selectedSlot === s.time ? `2px solid ${colors.accent}` : `1px solid ${colors.border}`, background: selectedSlot === s.time ? colors.accent : colors.bg, color: selectedSlot === s.time ? colors.accentText : colors.text, transition: "all 0.2s" }}
+                            onMouseEnter={(e) => !selectedSlot && (e.currentTarget.style.background = "rgba(196,127,58,0.1)")}
+                            onMouseLeave={(e) => !selectedSlot && (e.currentTarget.style.background = colors.bg)}
+                          >
+                            {s.time}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Booking Form */}
+                {selectedSlot && (
+                  <form onSubmit={handleBook} style={{ borderTop: `1px solid ${colors.border}`, paddingTop: "24px", marginTop: "24px" }}>
+                    <h3 style={{ fontSize: "14px", fontWeight: "600", color: colors.text, marginBottom: "16px", margin: "0 0 16px" }}>Your Information</h3>
+                    
+                    <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "16px" }}>
+                      <input 
+                        type="text"
+                        placeholder="Full name" 
+                        value={form.name} 
+                        onChange={e => setForm({...form,name:e.target.value})} 
+                        required
+                        style={{ padding: "10px 12px", border: `1px solid ${colors.border}`, borderRadius: "8px", background: colors.bg, color: colors.text, fontSize: "14px", fontFamily: "'Inter', sans-serif", outline: "none", transition: "all 0.2s" }}
+                        onFocus={(e) => (e.currentTarget.style.borderColor = colors.accent)}
+                        onBlur={(e) => (e.currentTarget.style.borderColor = colors.border)}
+                      />
+                      <input 
+                        type="email" 
+                        placeholder="Email address" 
+                        value={form.email} 
+                        onChange={e => setForm({...form,email:e.target.value})} 
+                        required
+                        style={{ padding: "10px 12px", border: `1px solid ${colors.border}`, borderRadius: "8px", background: colors.bg, color: colors.text, fontSize: "14px", fontFamily: "'Inter', sans-serif", outline: "none", transition: "all 0.2s" }}
+                        onFocus={(e) => (e.currentTarget.style.borderColor = colors.accent)}
+                        onBlur={(e) => (e.currentTarget.style.borderColor = colors.border)}
+                      />
+                      <textarea 
+                        placeholder="Additional notes (optional)" 
+                        value={form.notes} 
+                        onChange={e => setForm({...form,notes:e.target.value})} 
+                        rows={3}
+                        style={{ padding: "10px 12px", border: `1px solid ${colors.border}`, borderRadius: "8px", background: colors.bg, color: colors.text, fontSize: "14px", fontFamily: "'Inter', sans-serif", outline: "none", resize: "none", transition: "all 0.2s" }}
+                        onFocus={(e) => (e.currentTarget.style.borderColor = colors.accent)}
+                        onBlur={(e) => (e.currentTarget.style.borderColor = colors.border)}
+                      />
+                    </div>
+
+                    {error && (
+                      <div style={{ marginBottom: "16px", padding: "12px", background: "rgba(196,127,58,0.1)", border: `1px solid ${colors.border}`, borderRadius: "8px", display: "flex", alignItems: "flex-start", gap: "8px" }}>
+                        <AlertCircle style={{ width: "16px", height: "16px", color: colors.accent, flexShrink: 0, marginTop: "2px" }} />
+                        <p style={{ color: colors.text, fontSize: "13px", margin: 0 }}>{error}</p>
+                      </div>
+                    )}
+
+                    <button type="submit" disabled={submitting} style={{ width: "100%", padding: "12px 16px", background: colors.accent, color: colors.accentText, fontWeight: "600", borderRadius: "8px", border: "none", cursor: submitting ? "not-allowed" : "pointer", fontSize: "15px", fontFamily: "'Inter', sans-serif", opacity: submitting ? 0.7 : 1, transition: "all 0.2s" }}
+                      onMouseEnter={(e) => !submitting && (e.currentTarget.style.background = colors.accentHover)}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = colors.accent)}
+                    >
+                      {submitting ? "Booking..." : eventType.price > 0 ? `Pay ${(eventType.price/100).toFixed(2)}$ & Confirm` : "Confirm Booking"}
+                    </button>
+                  </form>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   );
 }
-
-const inputStyle: React.CSSProperties = {
-  width: "100%", boxSizing: "border-box", padding: "12px 14px", borderRadius: 8,
-  border: "1px solid rgba(0,0,0,0.12)", fontSize: 14, fontFamily: "'Inter', sans-serif",
-  outline: "none", marginBottom: 10,
-};
-
-const mobileInputStyle: React.CSSProperties = {
-  width: "100%", boxSizing: "border-box", padding: "10px 12px", borderRadius: 8,
-  border: "1px solid rgba(0,0,0,0.12)", fontSize: 13, fontFamily: "'Inter', sans-serif",
-  outline: "none", marginBottom: 8,
-};
