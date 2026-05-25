@@ -1,76 +1,72 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
 export async function PUT(request: NextRequest) {
   try {
     const supabase = await createClient();
-    const { data: { user: authUser } } = await supabase.auth.getUser();
+    const { data: { user } } = await supabase.auth.getUser();
     
-    if (!authUser) {
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const body = await request.json();
     const { scheduleName, timezone, intervals } = body;
 
-    // 1. Ensure user exists in Prisma and update timezone
-    const user = await prisma.user.upsert({
-      where: { id: authUser.id },
-      update: { timeZone: timezone || "America/Toronto" },
-      create: {
-        id: authUser.id,
-        email: authUser.email!,
-        name: authUser.user_metadata?.name || authUser.email!.split('@')[0],
-        username: authUser.user_metadata?.username || authUser.email!.split('@')[0],
-        timeZone: timezone || "America/Toronto",
-      },
-    });
+    // 1. Update user timezone
+    if (timezone) {
+      await supabase.from("User").update({ timeZone: timezone }).eq("id", user.id);
+    }
 
     // 2. Get or create default schedule
-    let schedule = await prisma.schedule.findFirst({
-      where: {
-        userId: user.id,
-        isDefault: true,
-      },
-    });
+    let { data: schedule, error: fetchError } = await supabase
+      .from("Schedule")
+      .select("id")
+      .eq("userId", user.id)
+      .eq("isDefault", true)
+      .maybeSingle();
+
+    if (fetchError) throw fetchError;
 
     if (!schedule) {
-      schedule = await prisma.schedule.create({
-        data: {
+      const { data: newSchedule, error: createError } = await supabase
+        .from("Schedule")
+        .insert({
           userId: user.id,
           name: scheduleName || "Working Hours",
           timeZone: timezone || "America/Toronto",
-          isDefault: true,
-        },
-      });
+          isDefault: true
+        })
+        .select("id")
+        .single();
+      
+      if (createError) throw createError;
+      schedule = newSchedule;
     } else if (scheduleName || timezone) {
-      schedule = await prisma.schedule.update({
-        where: { id: schedule.id },
-        data: {
-          name: scheduleName || schedule.name,
-          timeZone: timezone || schedule.timeZone,
-        },
-      });
+      const updateData: any = {};
+      if (scheduleName) updateData.name = scheduleName;
+      if (timezone) updateData.timeZone = timezone;
+      await supabase.from("Schedule").update(updateData).eq("id", schedule.id);
     }
 
-    // 3. Update intervals (Delete old, create new in a transaction)
-    await prisma.$transaction([
-      prisma.availability.deleteMany({
-        where: { scheduleId: schedule.id },
-      }),
-      prisma.availability.createMany({
-        data: (intervals || []).map((i: any) => ({
+    // 3. Delete old availability intervals
+    await supabase.from("Availability").delete().eq("scheduleId", schedule.id);
+
+    // 4. Insert new intervals
+    if (intervals && intervals.length > 0) {
+      const { error: insertError } = await supabase.from("Availability").insert(
+        intervals.map((i: any) => ({
           scheduleId: schedule.id,
           dayOfWeek: i.dayOfWeek,
           startTime: i.startTime,
           endTime: i.endTime,
-          isActive: i.isActive ?? true,
-        })),
-      }),
-    ]);
+          isActive: i.isActive ?? true
+        }))
+      );
+      if (insertError) throw insertError;
+    }
 
     return NextResponse.json({ status: "success" });
   } catch (error: any) {
@@ -82,21 +78,25 @@ export async function PUT(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
-    const { data: { user: authUser } } = await supabase.auth.getUser();
+    const { data: { user } } = await supabase.auth.getUser();
     
-    if (!authUser) {
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const schedule = await prisma.schedule.findFirst({
-      where: {
-        userId: authUser.id,
-        isDefault: true,
-      },
-      include: {
-        intervals: true,
-      },
-    });
+    const { data: schedule, error: fetchError } = await supabase
+      .from("Schedule")
+      .select(`
+        id,
+        name,
+        timeZone,
+        intervals:Availability(*)
+      `)
+      .eq("userId", user.id)
+      .eq("isDefault", true)
+      .maybeSingle();
+
+    if (fetchError) throw fetchError;
 
     if (!schedule) {
       return NextResponse.json({ name: "Working Hours", timeZone: "America/Toronto", intervals: [] });
