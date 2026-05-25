@@ -28,7 +28,7 @@ export default function BookingPage() {
               <span className="text-white font-bold text-xl">P</span>
             </div>
             <span className="font-bold text-2xl tracking-tight">Planxo</span>
-          </div>
+          </Link>
           <div className="text-sm text-zinc-400">Book with Brandon</div>
         </div>
       </div>
