@@ -20,6 +20,11 @@ export default function SettingsPage() {
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileSaved, setProfileSaved] = useState(false);
 
+  // Reminder preferences state
+  const [reminderPrefs, setReminderPrefs] = useState<any>(null);
+  const [savingReminders, setSavingReminders] = useState(false);
+  const [remindersSaved, setRemindersSaved] = useState(false);
+
   // Conferencing controlled state
   const [conferencing, setConferencing] = useState("Google Meet");
 
@@ -33,6 +38,13 @@ export default function SettingsPage() {
         if (data.username !== undefined) setUsername(data.username || "");
         if (data.timeZone) setTimeZone(data.timeZone);
         if (data.conferencing) setConferencing(data.conferencing);
+      });
+
+    // Fetch reminder preferences
+    fetch("/api/v2/me/reminders")
+      .then(r => r.json())
+      .then(data => {
+        setReminderPrefs(data);
       })
       .finally(() => setLoading(false));
   }, []);
@@ -65,11 +77,38 @@ export default function SettingsPage() {
     }
   }
 
+  async function saveReminderPreferences() {
+    if (!reminderPrefs) return;
+
+    setSavingReminders(true);
+    try {
+      await fetch("/api/v2/me/reminders", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email24h: {
+            enabled: reminderPrefs.email24h.enabled,
+            subject: reminderPrefs.email24h.subject,
+            body: reminderPrefs.email24h.body,
+          },
+          sms2h: {
+            enabled: reminderPrefs.sms2h.enabled,
+            message: reminderPrefs.sms2h.message,
+          },
+        }),
+      });
+      setRemindersSaved(true);
+      setTimeout(() => setRemindersSaved(false), 2500);
+    } finally {
+      setSavingReminders(false);
+    }
+  }
+
   const tabs: { key: Tab; label: string; icon: string }[] = [
     { key: "profile", label: "Profil", icon: "👤" },
     { key: "calendars", label: "Calendriers", icon: "📅" },
     { key: "conferencing", label: "Visioconférence", icon: "📹" },
-    { key: "workflows", label: "Workflows & Rappels", icon: "⚡" },
+    { key: "workflows", label: "Rappels & Notifications", icon: "🔔" },
     { key: "api", label: "API & Dev", icon: "🔑" },
     { key: "appearance", label: "Apparence", icon: "🎨" },
   ];
@@ -477,91 +516,127 @@ function WorkflowsSection({ colors, user }: any) {
 
   return (
     <div style={{ animation: "fadeIn 0.3s ease" }}>
-      <h1 style={{ fontFamily: "'Cal Sans',sans-serif", fontSize: 24, fontWeight: 700, marginBottom: 6, color: colors.text }}>Workflows & Rappels</h1>
-      <p style={{ fontSize: 14, color: colors.textMuted, marginBottom: 28 }}>Configurez vos notifications automatisées (Courriel, SMS, Appels IA).</p>
-      
-      {/* Standard Reminders */}
-      <div style={{ padding: 24, borderRadius: 16, border: `1px solid ${colors.border}`, background: colors.cardBg, marginBottom: 24 }}>
-        <h3 style={{ fontSize: 16, fontWeight: 600, color: colors.text, margin: "0 0 16px" }}>Rappels de base</h3>
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" }}>
-            <div>
-              <div style={{ fontSize: 15, fontWeight: 500, color: colors.text }}>Courriel 24h avant</div>
-              <div style={{ fontSize: 13, color: colors.textMuted }}>Envoie un courriel de rappel au participant.</div>
-            </div>
-            <input type="checkbox" defaultChecked style={{ width: 18, height: 18, accentColor: colors.accent }} />
-          </label>
-          <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" }}>
-            <div>
-              <div style={{ fontSize: 15, fontWeight: 500, color: colors.text }}>SMS 2h avant (Nécessite Twilio)</div>
-              <div style={{ fontSize: 13, color: colors.textMuted }}>Envoie un message texte directement sur le cellulaire.</div>
-            </div>
-            <input type="checkbox" style={{ width: 18, height: 18, accentColor: colors.accent }} />
-          </label>
-        </div>
-      </div>
+      <h1 style={{ fontFamily: "'Cal Sans',sans-serif", fontSize: 24, fontWeight: 700, marginBottom: 6, color: colors.text }}>
+        Rappels & Notifications
+      </h1>
+      <p style={{ fontSize: 14, color: colors.textMuted, marginBottom: 32 }}>
+        Choisissez comment vos clients reçoivent des rappels et personnalisez les messages.
+      </p>
 
-      {/* ElevenLabs Integration */}
-      <div style={{
-        padding: 24, borderRadius: 16, border: `1px solid ${colors.accent}40`,
-        background: `linear-gradient(145deg, ${colors.cardBg}, ${colors.bg})`,
-        boxShadow: `0 8px 32px ${colors.accent}10`
-      }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
-          <div style={{ width: 32, height: 32, borderRadius: 8, background: "#000", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", border: "1px solid #333" }}>
-            |||
-          </div>
-          <h3 style={{ fontSize: 16, fontWeight: 600, color: colors.text, margin: 0 }}>Rappels Vocaux IA (Propulsé par ElevenLabs)</h3>
-        </div>
-        <p style={{ fontSize: 14, color: colors.textMuted, marginBottom: 20 }}>Générez des appels téléphoniques automatisés avec des voix ultra-réalistes.</p>
-        
-        {loadingVoices ? (
-          <div style={{ fontSize: 14, color: colors.textMuted }}>Chargement des voix...</div>
-        ) : (
-          <div style={{ display: "grid", gap: 16 }}>
-            <div>
-              <label style={{ fontSize: 13, fontWeight: 600, color: colors.textMuted, display: "block", marginBottom: 6 }}>Sélectionner une voix</label>
-              <select
-                value={selectedVoice} onChange={e => setSelectedVoice(e.target.value)}
-                style={{ width: "100%", padding: "10px 14px", borderRadius: 8, border: `1px solid ${colors.border}`, background: colors.bg, color: colors.text, fontSize: 14, outline: "none" }}
-              >
-                {voices.map(v => (
-                  <option key={v.id} value={v.id}>{v.name} ({v.category})</option>
-                ))}
-              </select>
-            </div>
-            
-            <div>
-              <label style={{ fontSize: 13, fontWeight: 600, color: colors.textMuted, display: "block", marginBottom: 6 }}>Script de l'appel</label>
-              <textarea
-                value={reminderText} onChange={e => setReminderText(e.target.value)}
-                rows={4}
-                style={{ width: "100%", padding: "10px 14px", borderRadius: 8, border: `1px solid ${colors.border}`, background: colors.bg, color: colors.text, fontSize: 14, outline: "none", resize: "vertical" }}
+      {!reminderPrefs ? (
+        <div style={{ padding: 40, textAlign: "center", color: colors.textMuted }}>Chargement des préférences...</div>
+      ) : (
+        <div style={{ display: "grid", gap: 32 }}>
+
+          {/* Email 24h */}
+          <div style={{ padding: 24, borderRadius: 16, border: `1px solid ${colors.border}`, background: colors.cardBg }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <div>
+                <div style={{ fontSize: 17, fontWeight: 600, color: colors.text }}>Rappel par courriel (24h avant)</div>
+                <div style={{ fontSize: 13, color: colors.textMuted, marginTop: 4 }}>Envoyé automatiquement 24 heures avant le rendez-vous.</div>
+              </div>
+              <input
+                type="checkbox"
+                checked={reminderPrefs.email24h.enabled}
+                onChange={(e) => setReminderPrefs({
+                  ...reminderPrefs,
+                  email24h: { ...reminderPrefs.email24h, enabled: e.target.checked }
+                })}
+                style={{ width: 20, height: 20, accentColor: colors.accent }}
               />
             </div>
 
-            <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-              <button
-                onClick={handlePreview} disabled={generating || !reminderText}
-                style={{
-                  background: colors.accent, color: colors.accentText, border: "none",
-                  borderRadius: 8, padding: "10px 20px", fontSize: 14, fontWeight: 600,
-                  cursor: generating ? "wait" : "pointer", opacity: generating ? 0.7 : 1, transition: "opacity .2s",
-                  display: "flex", alignItems: "center", gap: 8
-                }}
-              >
-                {generating ? "Génération en cours..." : "▶️ Écouter l'aperçu"}
-              </button>
-              
-              {audioUrl && (
-                <a href={audioUrl} download="rappel-vocal.mp3" style={{ fontSize: 13, color: colors.accent, textDecoration: "none", fontWeight: 500 }}>
-                  ↓ Télécharger (.mp3)
-                </a>
-              )}
+            <div style={{ marginTop: 16 }}>
+              <label style={{ fontSize: 13, fontWeight: 500, color: colors.textMuted, display: "block", marginBottom: 6 }}>
+                Sujet de l'email
+              </label>
+              <input
+                type="text"
+                value={reminderPrefs.email24h.subject}
+                onChange={(e) => setReminderPrefs({
+                  ...reminderPrefs,
+                  email24h: { ...reminderPrefs.email24h, subject: e.target.value }
+                })}
+                style={{ width: "100%", padding: "10px 14px", borderRadius: 8, border: `1px solid ${colors.border}`, background: colors.bg, color: colors.text }}
+              />
+            </div>
+
+            <div style={{ marginTop: 16 }}>
+              <label style={{ fontSize: 13, fontWeight: 500, color: colors.textMuted, display: "block", marginBottom: 6 }}>
+                Contenu du message
+              </label>
+              <textarea
+                rows={5}
+                value={reminderPrefs.email24h.body}
+                onChange={(e) => setReminderPrefs({
+                  ...reminderPrefs,
+                  email24h: { ...reminderPrefs.email24h, body: e.target.value }
+                })}
+                style={{ width: "100%", padding: "12px 14px", borderRadius: 8, border: `1px solid ${colors.border}`, background: colors.bg, color: colors.text, fontSize: 14, lineHeight: 1.5 }}
+              />
+              <div style={{ fontSize: 11, color: colors.textMuted, marginTop: 6 }}>
+                Variables : {"{{name}}"}, {"{{professional}}"}, {"{{date}}"}, {"{{time}}"}, {"{{event}}"}
+              </div>
             </div>
           </div>
-        )}
-      </div>
+
+          {/* SMS 2h */}
+          <div style={{ padding: 24, borderRadius: 16, border: `1px solid ${colors.border}`, background: colors.cardBg }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <div>
+                <div style={{ fontSize: 17, fontWeight: 600, color: colors.text }}>Rappel par SMS (2h avant)</div>
+                <div style={{ fontSize: 13, color: colors.textMuted, marginTop: 4 }}>Nécessite Twilio. Envoyé 2 heures avant le rendez-vous.</div>
+              </div>
+              <input
+                type="checkbox"
+                checked={reminderPrefs.sms2h.enabled}
+                onChange={(e) => setReminderPrefs({
+                  ...reminderPrefs,
+                  sms2h: { ...reminderPrefs.sms2h, enabled: e.target.checked }
+                })}
+                style={{ width: 20, height: 20, accentColor: colors.accent }}
+              />
+            </div>
+
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 500, color: colors.textMuted, display: "block", marginBottom: 6 }}>
+                Message SMS
+              </label>
+              <textarea
+                rows={3}
+                value={reminderPrefs.sms2h.message}
+                onChange={(e) => setReminderPrefs({
+                  ...reminderPrefs,
+                  sms2h: { ...reminderPrefs.sms2h, message: e.target.value }
+                })}
+                style={{ width: "100%", padding: "12px 14px", borderRadius: 8, border: `1px solid ${colors.border}`, background: colors.bg, color: colors.text, fontSize: 14 }}
+              />
+              <div style={{ fontSize: 11, color: colors.textMuted, marginTop: 6 }}>
+                Variables : {"{{name}}"}, {"{{professional}}"}, {"{{date}}"}, {"{{time}}"}
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display: "flex", justifyContent: "flex-end" }}>
+            <button
+              onClick={saveReminderPreferences}
+              disabled={savingReminders}
+              style={{
+                background: colors.accent,
+                color: colors.accentText,
+                border: "none",
+                borderRadius: 8,
+                padding: "10px 24px",
+                fontWeight: 600,
+                cursor: savingReminders ? "not-allowed" : "pointer",
+                opacity: savingReminders ? 0.7 : 1,
+              }}
+            >
+              {savingReminders ? "Enregistrement..." : remindersSaved ? "✓ Enregistré !" : "Enregistrer les préférences"}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

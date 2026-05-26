@@ -17,6 +17,7 @@ model User {
   email     String   @unique
   avatarUrl String?
   timeZone  String   @default("America/Toronto")
+  reminderPreferences Json?   // Stores email/SMS reminder settings + custom messages
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
