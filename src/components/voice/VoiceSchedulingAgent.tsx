@@ -75,6 +75,9 @@ export function VoiceSchedulingAgent({
   // Safe mode: automatically disables Continuous Mode after the first audio error
   const [safeModeActive, setSafeModeActive] = useState(false);
 
+  // Mount guard to prevent speaking too early during initial render / extension interference
+  const isMountedRef = useRef(false);
+
   // Refs
   const audioRef = useRef<HTMLAudioElement | null>(null);           // React-controlled audio element
   const currentAudioUrlRef = useRef<string | null>(null);
@@ -242,9 +245,11 @@ export function VoiceSchedulingAgent({
 
   // Initial setup
   useEffect(() => {
+    isMountedRef.current = true;
     initConversation();
     loadVoices();
     return () => {
+      isMountedRef.current = false;
       stopSpeaking();
       stopListening();
       if (conversationRef.current) conversationRef.current = null;
@@ -256,11 +261,18 @@ export function VoiceSchedulingAgent({
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, interimTranscript]);
 
-  // Speak the first message (or pending message) once we have a voice selected
+  // Speak the first message only after mount + voice is ready (prevents early audio DOM conflicts)
   useEffect(() => {
+    if (!isMountedRef.current) return;
     if (selectedVoice && lastAssistantText && !hasSpokenInitial) {
-      speak(lastAssistantText);
-      setHasSpokenInitial(true);
+      // Small delay on initial speak to let React and the browser settle (especially with extensions)
+      const timer = setTimeout(() => {
+        if (isMountedRef.current) {
+          speak(lastAssistantText);
+          setHasSpokenInitial(true);
+        }
+      }, 180);
+      return () => clearTimeout(timer);
     }
   }, [selectedVoice, lastAssistantText]);
 
@@ -289,6 +301,7 @@ export function VoiceSchedulingAgent({
   }, []);
 
   const speak = useCallback(async (text: string) => {
+    if (!isMountedRef.current) return;
     if (!selectedVoice || !text.trim()) return;
 
     const audioEl = audioRef.current;
