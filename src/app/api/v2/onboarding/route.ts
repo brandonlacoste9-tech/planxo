@@ -30,7 +30,7 @@ export async function PUT(request: NextRequest) {
       },
       create: {
         id: authUser.id,
-        email: authUser.email || "",
+        email: authUser.email || `${authUser.id}@placeholder.planxo.com`,
         name: finalName,
         username: finalUsername,
         timeZone: finalTimeZone,
@@ -121,6 +121,12 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ status: "success" });
   } catch (error: any) {
     console.error("Error during onboarding:", error);
+    if (error?.code === "P2002") {
+      const target = error?.meta?.target;
+      if (Array.isArray(target) && target.includes("username")) {
+        return NextResponse.json({ error: "Ce nom d'utilisateur est déjà pris. Veuillez en choisir un autre." }, { status: 400 });
+      }
+    }
     return NextResponse.json({ error: error.message || "Internal Server Error" }, { status: 500 });
   }
 }
