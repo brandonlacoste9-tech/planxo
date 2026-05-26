@@ -165,7 +165,17 @@ export default function SettingsPage() {
         {tab === "conferencing" && (
           <ConferencingSection colors={colors} conferencing={conferencing} saveConferencing={saveConferencing} />
         )}
-        {tab === "workflows" && <WorkflowsSection colors={colors} user={user} />}
+        {tab === "workflows" && (
+  <WorkflowsSection 
+    colors={colors} 
+    user={user} 
+    reminderPrefs={reminderPrefs}
+    setReminderPrefs={setReminderPrefs}
+    savingReminders={savingReminders}
+    remindersSaved={remindersSaved}
+    saveReminderPreferences={saveReminderPreferences}
+  />
+)}
         {tab === "api" && <APISection colors={colors} eventTypes={eventTypes} username={user?.username} />}
         {tab === "appearance" && <AppearanceSection colors={colors} />}
 
@@ -469,7 +479,15 @@ function AppearanceSection({ colors }: any) {
   );
 }
 
-function WorkflowsSection({ colors, user }: any) {
+function WorkflowsSection({ 
+  colors, 
+  user, 
+  reminderPrefs, 
+  setReminderPrefs, 
+  savingReminders, 
+  remindersSaved, 
+  saveReminderPreferences 
+}: any) {
   const [voices, setVoices] = useState<any[]>([]);
   const [loadingVoices, setLoadingVoices] = useState(true);
   const [selectedVoice, setSelectedVoice] = useState("pNInz6obpgDQGcFmaJgB"); // Adam voice by default if exists
