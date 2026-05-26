@@ -322,6 +322,45 @@ function APISection({ colors, eventTypes, username }: any) {
         </div>
       </div>
 
+      {/* Telegram Bot Integration */}
+      <div style={{
+        padding: 24, borderRadius: 20, marginBottom: 32,
+        background: `linear-gradient(145deg, ${colors.cardBg}, ${colors.bg})`,
+        border: `1px solid ${colors.border}`,
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+          <div style={{
+            width: 40, height: 40, borderRadius: 12, background: "#2AABEE",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            color: "#fff", fontSize: 20
+          }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+          </div>
+          <div>
+            <h3 style={{ fontSize: 18, fontWeight: 600, color: colors.text, margin: 0 }}>Intégration Telegram</h3>
+            <p style={{ fontSize: 13, color: colors.textMuted, margin: "2px 0 0" }}>Recevez vos alertes de réservation en temps réel.</p>
+          </div>
+        </div>
+
+        <p style={{ fontSize: 14, color: colors.textMuted, marginBottom: 20, lineHeight: 1.5 }}>
+          Connectez le bot Telegram <strong>@PlanxoBot</strong> à votre compte pour recevoir une notification push immédiate chaque fois qu'un client réserve un rendez-vous avec vous.
+        </p>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <button style={{
+            background: "#2AABEE", color: "#fff", border: "none",
+            borderRadius: 8, padding: "10px 18px", fontSize: 14, fontWeight: 600,
+            cursor: "pointer", display: "flex", alignItems: "center", gap: 8,
+            boxShadow: "0 4px 12px rgba(42, 171, 238, 0.25)"
+          }}>
+            Connecter Telegram
+          </button>
+          <span style={{ fontSize: 13, color: colors.textMuted }}>
+            Non connecté
+          </span>
+        </div>
+      </div>
+
       {/* Event Types References */}
       <h3 style={{ fontSize: 18, fontWeight: 600, color: colors.text, margin: "0 0 16px" }}>Identifiants de Types d'Évènements</h3>
       <p style={{ fontSize: 14, color: colors.textMuted, marginBottom: 16 }}>Utilisez ces slugs lors de la création de réservations via l'API.</p>
