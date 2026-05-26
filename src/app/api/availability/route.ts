@@ -69,7 +69,11 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ status: "success" });
   } catch (error: any) {
     console.error("Error in availability API:", error);
-    return NextResponse.json({ error: error.message || "Internal Server Error" }, { status: 500 });
+    return NextResponse.json({ 
+      error: error.message || "Internal Server Error",
+      details: error.toString(),
+      stack: error.stack
+    }, { status: 500 });
   }
 }
 
@@ -94,6 +98,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(schedule);
   } catch (error: any) {
     console.error("Error in availability GET:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ 
+      error: error.message,
+      details: error.toString(),
+      stack: error.stack
+    }, { status: 500 });
   }
 }
