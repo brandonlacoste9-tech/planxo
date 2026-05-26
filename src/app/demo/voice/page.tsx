@@ -16,6 +16,11 @@ export default function VoiceDemo() {
   const [context, setContext] = useState<Record<string, any>>({});
   const [isProcessing, setIsProcessing] = useState(false);
   const conversationRef = useRef<ConversationManager | null>(null);
+
+  // ElevenLabs voice selector for demo
+  const [voices, setVoices] = useState<any[]>([]);
+  const [selectedVoice, setSelectedVoice] = useState('');
+  const [voiceError, setVoiceError] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -53,6 +58,27 @@ export default function VoiceDemo() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // Fetch ElevenLabs voices for demo
+  useEffect(() => {
+    async function loadVoices() {
+      try {
+        const res = await fetch('/api/v2/elevenlabs/voices');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.voices) {
+            setVoices(data.voices);
+            if (data.voices.length > 0) setSelectedVoice(data.voices[0].id);
+          } else if (data.error) {
+            setVoiceError(data.error);
+          }
+        }
+      } catch (e: any) {
+        setVoiceError('Failed to load voices');
+      }
+    }
+    loadVoices();
+  }, []);
 
   const handleSendMessage = async (text: string, isInitial = false) => {
     if (!conversationRef.current || isProcessing) return;
