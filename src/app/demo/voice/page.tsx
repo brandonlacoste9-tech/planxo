@@ -37,21 +37,63 @@ export default function VoiceDemo() {
       transcript: [],
     };
 
+    // Real AI tools powered by the new V2 scheduling endpoints + ElevenLabs voice
+    const aiTools = {
+      checkAvailability: async (date: string) => {
+        try {
+          const res = await fetch(`/api/v2/ai/availability?date=${date}`);
+          if (!res.ok) throw new Error('Failed to fetch availability');
+          const data = await res.json();
+          return {
+            availableTimes: data.availableTimes || [],
+            rawSlots: data.rawSlots,
+          };
+        } catch (e) {
+          console.error('Availability check failed:', e);
+          return { availableTimes: [] };
+        }
+      },
+      createBooking: async (params: { name: string; email: string; start: string; date: string; time: string }) => {
+        try {
+          const res = await fetch('/api/v2/ai/book', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              name: params.name,
+              email: params.email,
+              start: params.start,
+              username: 'planxo',
+              eventTypeSlug: 'appel-de-decouverte',
+            }),
+          });
+          const data = await res.json();
+          return {
+            success: !!data.success,
+            message: data.message || data.error,
+            booking: data.booking,
+          };
+        } catch (e: any) {
+          console.error('Booking failed:', e);
+          return { success: false, message: e.message };
+        }
+      },
+    };
+
     conversationRef.current = new ConversationManager(session, {
       onStateChange: (newState) => {
         setState(newState);
       },
       onResponse: (text) => {
-        setMessages(prev => [...prev, { role: 'assistant', text, timestamp: new Date() }]);
-        setIsProcessing(false);
+        handleAssistantResponse(text);
       },
-    });
+    }, aiTools);
 
     // Send initial greeting
     conversationRef.current.generateGreeting();
 
     return () => {
       conversationRef.current = null;
+      stopSpeaking();
     };
   }, []);
 
@@ -59,16 +101,30 @@ export default function VoiceDemo() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Fetch ElevenLabs voices for demo
+  // Audio playback state for ElevenLabs TTS
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [autoSpeak, setAutoSpeak] = useState(true);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const currentAudioUrlRef = useRef<string | null>(null);
+
+  // Refs to avoid stale closures in ConversationManager callbacks
+  const autoSpeakRef = useRef(autoSpeak);
+  const selectedVoiceRef = useRef(selectedVoice);
+  autoSpeakRef.current = autoSpeak;
+  selectedVoiceRef.current = selectedVoice;
+
+  // Fetch ElevenLabs voices for demo (public demo endpoint)
   useEffect(() => {
     async function loadVoices() {
       try {
-        const res = await fetch('/api/v2/elevenlabs/voices');
+        const res = await fetch('/api/demo/elevenlabs/voices');
         if (res.ok) {
           const data = await res.json();
           if (data.voices) {
             setVoices(data.voices);
-            if (data.voices.length > 0) setSelectedVoice(data.voices[0].id);
+            if (data.voices.length > 0 && !selectedVoice) {
+              setSelectedVoice(data.voices[0].id);
+            }
           } else if (data.error) {
             setVoiceError(data.error);
           }
@@ -80,9 +136,23 @@ export default function VoiceDemo() {
     loadVoices();
   }, []);
 
+  // Speak the initial greeting once we have a voice selected
+  const hasSpokenInitialGreeting = useRef(false);
+  useEffect(() => {
+    if (selectedVoice && !hasSpokenInitialGreeting.current && messages.length > 0) {
+      // Find the first assistant message (the greeting) and speak it
+      const firstAssistant = messages.find(m => m.role === 'assistant');
+      if (firstAssistant && autoSpeak) {
+        hasSpokenInitialGreeting.current = true;
+        setTimeout(() => speak(firstAssistant.text), 400);
+      }
+    }
+  }, [selectedVoice, messages.length]);
+
   const handleSendMessage = async (text: string, isInitial = false) => {
     if (!conversationRef.current || isProcessing) return;
-    
+
+    stopSpeaking(); // stop any ongoing voice when user speaks
     setIsProcessing(true);
     
     if (!isInitial && text.trim()) {
@@ -92,7 +162,7 @@ export default function VoiceDemo() {
     try {
       const response = await conversationRef.current.processUserInput(text);
       if (isInitial) {
-        setMessages(prev => [...prev, { role: 'assistant', text: response, timestamp: new Date() }]);
+        handleAssistantResponse(response);
       }
     } catch (err) {
       console.error('Conversation error:', err);
@@ -108,6 +178,82 @@ export default function VoiceDemo() {
     setInputText('');
   };
 
+  // ElevenLabs TTS playback
+  const stopSpeaking = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
+    if (currentAudioUrlRef.current) {
+      URL.revokeObjectURL(currentAudioUrlRef.current);
+      currentAudioUrlRef.current = null;
+    }
+    setIsSpeaking(false);
+  };
+
+  const speak = async (text: string) => {
+    if (!selectedVoice || !text.trim()) return;
+
+    stopSpeaking(); // stop any previous
+
+    try {
+      setIsSpeaking(true);
+
+      const res = await fetch('/api/demo/elevenlabs/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: text.trim(),
+          voiceId: selectedVoice,
+          language: 'fr',
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `TTS failed: ${res.status}`);
+      }
+
+      const audioBlob = await res.blob();
+      const audioUrl = URL.createObjectURL(audioBlob);
+      currentAudioUrlRef.current = audioUrl;
+
+      const audio = new Audio(audioUrl);
+      audioRef.current = audio;
+
+      audio.onended = () => {
+        setIsSpeaking(false);
+        if (currentAudioUrlRef.current) {
+          URL.revokeObjectURL(currentAudioUrlRef.current);
+          currentAudioUrlRef.current = null;
+        }
+      };
+
+      audio.onerror = () => {
+        setIsSpeaking(false);
+        console.error('Audio playback error');
+      };
+
+      await audio.play();
+    } catch (err) {
+      console.error('Speak error:', err);
+      setIsSpeaking(false);
+      // Fallback: still show the text even if voice fails
+    }
+  };
+
+  // Enhanced response handler that includes voice (uses refs to avoid stale state)
+  const handleAssistantResponse = (text: string) => {
+    setMessages(prev => [...prev, { role: 'assistant', text, timestamp: new Date() }]);
+    setIsProcessing(false);
+
+    // Auto-speak with selected ElevenLabs voice (latest values via ref)
+    if (autoSpeakRef.current && selectedVoiceRef.current) {
+      // Small delay so UI updates first
+      setTimeout(() => speak(text), 120);
+    }
+  };
+
   const quickReplies = [
     'Je veux prendre un rendez-vous',
     'Demain',
@@ -115,6 +261,8 @@ export default function VoiceDemo() {
     'Oui, c\'est correct',
     'Merci, au revoir',
   ];
+
+  const selectedVoiceName = voices.find(v => v.id === selectedVoice)?.name || 'Default';
 
   return (
     <div style={{ minHeight: '100vh', background: '#1a1208', padding: 40 }}>
@@ -138,7 +286,7 @@ export default function VoiceDemo() {
           border: '1px solid rgba(200,169,110,0.2)',
           borderRadius: 12,
           padding: '12px 16px',
-          marginBottom: 20,
+          marginBottom: 12,
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
@@ -158,6 +306,127 @@ export default function VoiceDemo() {
             <span style={{ color: '#80604a', fontSize: 13 }}>
               {isProcessing ? 'Traitement...' : 'Prêt'}
             </span>
+          </div>
+        </div>
+
+        {/* ElevenLabs Voice Selector */}
+        <div style={{
+          background: 'rgba(200,169,110,0.06)',
+          border: '1px solid rgba(200,169,110,0.15)',
+          borderRadius: 12,
+          padding: '14px 16px',
+          marginBottom: 20,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 15 }}>🔊</span>
+              <span style={{ color: '#c8a96e', fontWeight: 600, fontSize: 14 }}>Voix ElevenLabs</span>
+              {isSpeaking && (
+                <span style={{ 
+                  fontSize: 12, 
+                  background: 'rgba(16,185,129,0.2)', 
+                  color: '#10b981', 
+                  padding: '2px 8px', 
+                  borderRadius: 999,
+                  fontWeight: 600
+                }}>
+                  EN COURS DE PAROLE
+                </span>
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 13, color: '#a08060' }}>
+                <input
+                  type="checkbox"
+                  checked={autoSpeak}
+                  onChange={(e) => setAutoSpeak(e.target.checked)}
+                  style={{ accentColor: '#c8a96e' }}
+                />
+                Auto-parler
+              </label>
+              {isSpeaking && (
+                <button
+                  onClick={stopSpeaking}
+                  style={{
+                    padding: '4px 10px',
+                    fontSize: 12,
+                    borderRadius: 8,
+                    border: '1px solid rgba(239,68,68,0.4)',
+                    background: 'transparent',
+                    color: '#ef4444',
+                    cursor: 'pointer',
+                    fontWeight: 600,
+                  }}
+                >
+                  ⏹ Arrêter
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <select
+              value={selectedVoice}
+              onChange={(e) => {
+                const newVoice = e.target.value;
+                setSelectedVoice(newVoice);
+                // Preview the new voice with a short sample
+                if (newVoice) {
+                  stopSpeaking();
+                  setTimeout(() => speak("Bonjour, je suis votre assistant vocal Planxo. Comment puis-je vous aider aujourd'hui?"), 80);
+                }
+              }}
+              disabled={voices.length === 0 || isSpeaking}
+              style={{
+                flex: 1,
+                minWidth: 220,
+                padding: '8px 12px',
+                borderRadius: 10,
+                border: '1px solid rgba(200,169,110,0.3)',
+                background: '#0f0a05',
+                color: '#f5ead8',
+                fontSize: 14,
+                cursor: isSpeaking ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {voices.length === 0 && <option>Chargement des voix...</option>}
+              {voices.map((voice) => (
+                <option key={voice.id} value={voice.id}>
+                  {voice.name} {voice.labels?.accent ? `· ${voice.labels.accent}` : ''}
+                </option>
+              ))}
+            </select>
+
+            <button
+              onClick={() => {
+                if (selectedVoice) {
+                  stopSpeaking();
+                  speak("Bonjour ! Je suis l'assistant vocal de Planxo. Je peux vous aider à réserver un rendez-vous.");
+                }
+              }}
+              disabled={!selectedVoice || isSpeaking}
+              style={{
+                padding: '8px 14px',
+                borderRadius: 10,
+                border: '1px solid rgba(200,169,110,0.3)',
+                background: 'transparent',
+                color: '#c8a96e',
+                fontSize: 13,
+                cursor: (!selectedVoice || isSpeaking) ? 'not-allowed' : 'pointer',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              ▶ Tester la voix
+            </button>
+          </div>
+
+          {voiceError && (
+            <div style={{ marginTop: 8, fontSize: 12, color: '#ef4444' }}>
+              ⚠️ {voiceError}
+            </div>
+          )}
+          <div style={{ marginTop: 6, fontSize: 11, color: '#80604a' }}>
+            Réponses parlées avec <strong>{selectedVoiceName}</strong> via ElevenLabs
           </div>
         </div>
 
@@ -336,12 +605,12 @@ export default function VoiceDemo() {
             Comment tester:
           </h3>
           <ol style={{ color: '#a08060', fontSize: 14, lineHeight: 1.8, paddingLeft: 20 }}>
-            <li>L'agent commence avec une salutation</li>
+            <li>L'agent commence avec une salutation (parlée avec ElevenLabs)</li>
             <li>Dites que vous voulez prendre un rendez-vous</li>
             <li>Donnez votre nom et email</li>
-            <li>Choisissez une date (ex: "demain", "vendredi", "15 juin")</li>
+            <li>Choisissez une date (ex: "demain", "vendredi", "15 juin") — l'agent vérifie les vrais créneaux</li>
             <li>Choisissez une heure (ex: "14h30", "2 heures")</li>
-            <li>Confirmez la réservation</li>
+            <li>Confirmez — le rendez-vous est réellement créé via Planxo !</li>
           </ol>
         </div>
       </div>

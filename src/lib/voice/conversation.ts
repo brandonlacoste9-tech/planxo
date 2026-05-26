@@ -21,21 +21,35 @@ CONVERSATION FLOW:
 
 TONE: Friendly, helpful, efficient. Use "vous" form in French.`;
 
+export interface AITools {
+  checkAvailability?: (date: string) => Promise<{ availableTimes: string[]; rawSlots?: any[] }>;
+  createBooking?: (params: {
+    name: string;
+    email: string;
+    start: string; // ISO 8601
+    date: string;
+    time: string;
+  }) => Promise<{ success: boolean; message?: string; booking?: any }>;
+}
+
 export class ConversationManager {
   private session: CallSession;
   private onStateChange?: (state: ConversationState) => void;
   private onResponse?: (text: string) => void;
+  private tools?: AITools;
 
   constructor(
     session: CallSession,
     callbacks?: {
       onStateChange?: (state: ConversationState) => void;
       onResponse?: (text: string) => void;
-    }
+    },
+    tools?: AITools
   ) {
     this.session = session;
     this.onStateChange = callbacks?.onStateChange;
     this.onResponse = callbacks?.onResponse;
+    this.tools = tools;
   }
 
   getState(): ConversationState {
@@ -128,6 +142,15 @@ export class ConversationManager {
       if (date) {
         ctx.selectedDate = date;
         this.setState('select_time');
+
+        // If we have a real availability tool, fetch slots now
+        if (this.tools?.checkAvailability) {
+          this.tools.checkAvailability(date).then((result) => {
+            ctx.availability = result.availableTimes || [];
+            // Optionally surface availability in a follow-up message (handled by caller if needed)
+          }).catch(() => {});
+        }
+
         return `D'accord pour le ${this.formatDate(date)}. À quelle heure? Vous pouvez dire par exemple '14 heures' ou '2 heures de l'après-midi'.`;
       }
       return "Je n'ai pas compris la date. Pouvez-vous la répéter? Vous pouvez dire 'demain', 'vendredi', ou une date comme 'le 20 juin'.";
@@ -187,8 +210,44 @@ export class ConversationManager {
   }
 
   private async completeBooking(): Promise<string> {
-    // This will be implemented to call the actual booking API
-    return `Parfait! Votre rendez-vous est confirmé pour le ${this.formatDate(this.session.context.selectedDate!)} à ${this.session.context.selectedTime}. Vous recevrez une confirmation par courriel à ${this.session.context.attendeeEmail}. Votre numéro de confirmation est PLAN-${Date.now().toString().slice(-6)}.`;
+    const ctx = this.session.context;
+
+    if (!ctx.attendeeName || !ctx.attendeeEmail || !ctx.selectedDate || !ctx.selectedTime) {
+      return "Il manque des informations pour finaliser la réservation. Pouvez-vous répéter votre nom, courriel et l'heure?";
+    }
+
+    // Build an ISO start time. We assume America/Toronto for the demo.
+    // The V2 /ai/book endpoint expects full ISO UTC.
+    const dateTimeStr = `${ctx.selectedDate}T${ctx.selectedTime}:00`;
+    const startDate = new Date(dateTimeStr);
+    // Treat the local time as Toronto time
+    const torontoOffset = -4; // EDT (adjust if needed for EST)
+    const utcStart = new Date(startDate.getTime() - (torontoOffset * 60 * 60 * 1000));
+    const isoStart = utcStart.toISOString();
+
+    if (this.tools?.createBooking) {
+      try {
+        const result = await this.tools.createBooking({
+          name: ctx.attendeeName,
+          email: ctx.attendeeEmail,
+          start: isoStart,
+          date: ctx.selectedDate,
+          time: ctx.selectedTime,
+        });
+
+        if (result.success) {
+          return `Excellent! Votre rendez-vous est confirmé pour le ${this.formatDate(ctx.selectedDate)} à ${ctx.selectedTime}. Vous recevrez une confirmation par courriel à ${ctx.attendeeEmail}. Merci d'avoir utilisé Planxo !`;
+        } else {
+          return `Désolé, la réservation n'a pas pu être complétée. ${result.message || 'Veuillez réessayer ou choisir un autre créneau.'}`;
+        }
+      } catch (err) {
+        console.error('[Conversation] Booking failed:', err);
+        return "Une erreur est survenue lors de la réservation. Voulez-vous essayer à nouveau ou choisir une autre date?";
+      }
+    }
+
+    // Fallback (no tools provided)
+    return `Parfait! Votre rendez-vous est confirmé pour le ${this.formatDate(ctx.selectedDate)} à ${ctx.selectedTime}. Vous recevrez une confirmation par courriel à ${ctx.attendeeEmail}. (Mode démo - réservation simulée)`;
   }
 
   // Helper methods for intent detection
