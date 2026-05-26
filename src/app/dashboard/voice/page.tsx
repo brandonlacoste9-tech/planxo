@@ -35,6 +35,7 @@ export default function VoiceDashboard() {
   const [voices, setVoices] = useState<any[]>([]);
   const [selectedVoice, setSelectedVoice] = useState('');
   const [testText, setTestText] = useState("Bonjour, je suis l'assistant vocal de Planxo. Comment puis-je vous aider aujourd'hui ?");
+  const [voiceError, setVoiceError] = useState('');
 
   const { theme } = useTheme();
   const dark = theme !== "default";
@@ -95,13 +96,21 @@ export default function VoiceDashboard() {
       const res = await fetch('/api/v2/elevenlabs/voices');
       if (res.ok) {
         const data = await res.json();
-        setVoices(data.voices || []);
-        if (data.voices?.length > 0 && !selectedVoice) {
-          setSelectedVoice(data.voices[0].id);
+        if (data.voices) {
+          setVoices(data.voices);
+          if (data.voices.length > 0 && !selectedVoice) {
+            setSelectedVoice(data.voices[0].id);
+          }
+        } else if (data.error) {
+          setVoiceError(data.error);
         }
+      } else {
+        const errData = await res.json();
+        setVoiceError(errData.error || 'Failed to load voices');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to fetch voices:', err);
+      setVoiceError('Network error loading voices');
     }
   }
 
@@ -371,11 +380,17 @@ export default function VoiceDashboard() {
                 border: `1px solid ${tColors.border}`, background: tColors.bg, 
                 color: tColors.text, fontSize: 14 
               }}
+              disabled={voices.length === 0}
             >
-              {voices.length === 0 && <option>Chargement des voix...</option>}
-              {voices.map(v => (
-                <option key={v.id} value={v.id}>{v.name} ({v.category})</option>
-              ))}
+              {voiceError ? (
+                <option>Erreur: {voiceError}</option>
+              ) : voices.length === 0 ? (
+                <option>Chargement des voix...</option>
+              ) : (
+                voices.map(v => (
+                  <option key={v.id} value={v.id}>{v.name} ({v.category})</option>
+                ))
+              )}
             </select>
             <button 
               onClick={testVoice}
