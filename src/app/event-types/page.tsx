@@ -56,6 +56,7 @@ function emptyForm() {
 export default function EventTypesPage() {
   const [eventTypes, setEventTypes] = useState<EventType[]>([]);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
+  const [username, setUsername] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState<{ open: boolean; editing: EventType | null }>({ open: false, editing: null });
   const [form, setForm] = useState(emptyForm());
@@ -74,7 +75,10 @@ export default function EventTypesPage() {
     fetchAll();
     fetch("/api/v2/me")
       .then((r) => r.json())
-      .then((d) => setSchedules(d.schedules || []));
+      .then((d) => {
+        setSchedules(d.schedules || []);
+        if (d.username) setUsername(d.username);
+      });
   }, []);
 
   const openNew = () => {
@@ -142,7 +146,8 @@ export default function EventTypesPage() {
   };
 
   const copyLink = (slug: string) => {
-    navigator.clipboard.writeText(`${window.location.origin}/${slug}`);
+    const url = username ? `${window.location.origin}/${username}/${slug}` : `${window.location.origin}/${slug}`;
+    navigator.clipboard.writeText(url);
     setCopySuccess(slug);
     setTimeout(() => setCopySuccess(""), 2000);
   };
@@ -288,7 +293,7 @@ export default function EventTypesPage() {
                   </button>
 
                   <a
-                    href={`/${et.slug}`}
+                    href={username ? `/${username}/${et.slug}` : `/${et.slug}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     style={{
