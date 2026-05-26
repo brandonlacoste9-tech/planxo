@@ -6,6 +6,35 @@ export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url);
+    const queryUsername = searchParams.get("username");
+
+    // If queryUsername is provided, fetch public profile WITHOUT requiring auth
+    if (queryUsername) {
+      const publicUser = await prisma.user.findUnique({
+        where: { username: queryUsername }
+      });
+
+      if (!publicUser) {
+        return NextResponse.json({ error: "User not found" }, { status: 404 });
+      }
+
+      const publicEventTypes = await prisma.eventType.findMany({
+        where: { userId: publicUser.id, isActive: true, isPrivate: false },
+        orderBy: { createdAt: "desc" }
+      });
+
+      return NextResponse.json({
+        id: publicUser.id,
+        name: publicUser.name,
+        username: publicUser.username,
+        timeZone: publicUser.timeZone,
+        eventTypes: publicEventTypes,
+        schedules: []
+      });
+    }
+
+    // Otherwise, fetch authenticated user's full profile
     const supabase = await createClient();
     const { data: { user: authUser } } = await supabase.auth.getUser();
 

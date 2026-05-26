@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { prisma } from "@/lib/prisma";
 import { getExternalBusyTimes } from "@/lib/calendar-sync";
 
 export const dynamic = "force-dynamic";
@@ -15,16 +16,16 @@ export async function GET(request: NextRequest) {
 
   // Resolve by slug if needed
   if (!eventTypeId && eventTypeSlug) {
-    const { data: user } = await supabase.from("users").select("id").eq("username", username).single();
+    const user = await prisma.user.findUnique({ where: { username } });
     if (!user) return apiError("User not found", 404);
-    const { data: et } = await supabase.from("EventType").select("id,userId").eq("slug", eventTypeSlug).eq("userId", user.id).single();
+    const et = await prisma.eventType.findFirst({ where: { slug: eventTypeSlug, userId: user.id } });
     if (!et) return apiError("Event type not found", 404);
     eventTypeId = et.id;
   }
 
   if (!eventTypeId) return apiError("eventTypeId or eventTypeSlug required", 400);
 
-  const { data: eventType } = await supabase.from("EventType").select("*").eq("id", eventTypeId).single();
+  const eventType = await prisma.eventType.findUnique({ where: { id: eventTypeId } });
   if (!eventType) return apiError("Event type not found", 404);
 
   // Minimum booking notice cutoff — slots starting before this are filtered out
@@ -54,16 +55,21 @@ export async function GET(request: NextRequest) {
   const scheduleId: number | null = eventType.scheduleId || null;
 
   // Get schedules for all team members
-  let schedQuery = supabase.from("Schedule").select("id,userId").in("userId", teamMemberIds);
+  let schedules = await prisma.schedule.findMany({
+    where: { userId: { in: teamMemberIds } }
+  });
   // If a specific schedule is linked to this event type, restrict to it
   if (scheduleId) {
-    schedQuery = supabase.from("Schedule").select("id,userId").eq("id", scheduleId).in("userId", teamMemberIds);
+    schedules = await prisma.schedule.findMany({
+      where: { id: String(scheduleId), userId: { in: teamMemberIds } }
+    });
   }
-  const { data: schedules } = await schedQuery;
   if (!schedules?.length) return NextResponse.json({ status: "success", data: {} });
 
   const scheduleIds = schedules.map((s: any) => s.id);
-  const { data: allIntervals } = await supabase.from("Availability").select("*").in("scheduleId", scheduleIds);
+  const allIntervals = await prisma.availability.findMany({
+    where: { scheduleId: { in: scheduleIds } }
+  });
 
   // --- TASK 13D: Fetch date overrides (blocked dates) for the host ---
   const hostUserId = eventType.userId;
@@ -77,7 +83,14 @@ export async function GET(request: NextRequest) {
   }));
 
   // Get all local bookings in range for ALL team members
-  const { data: allBookings } = await supabase.from("Booking").select("startTime,endTime,userId").eq("eventTypeId", eventTypeId).neq("status", "cancelled").gte("startTime", rangeStart.toISOString()).lte("startTime", rangeEnd.toISOString());
+  const allBookings = await prisma.booking.findMany({
+    where: {
+      eventTypeId,
+      status: { not: "cancelled" },
+      startTime: { gte: rangeStart, lte: rangeEnd }
+    },
+    select: { startTime: true, endTime: true, userId: true }
+  });
 
   const slotsByDay: Record<string, string[]> = {};
 

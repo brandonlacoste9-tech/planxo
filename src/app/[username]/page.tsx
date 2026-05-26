@@ -1,14 +1,12 @@
-import { supabase } from "@/lib/supabase";
+import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 
 export default async function UserHubPage({ params }: { params: Promise<{ username: string }> }) {
   const { username } = await params;
 
-  const { data: user } = await supabase
-    .from("users")
-    .select("id, name, username, avatarUrl, bio")
-    .eq("username", username)
-    .single();
+  const user = await prisma.user.findUnique({
+    where: { username }
+  });
 
   if (!user) {
     return (
@@ -27,13 +25,14 @@ export default async function UserHubPage({ params }: { params: Promise<{ userna
     );
   }
 
-  const { data: events } = await supabase
-    .from("EventType")
-    .select("id, title, slug, description, length, location, price, color")
-    .eq("userId", user.id)
-    .eq("isActive", true)
-    .eq("isPrivate", false)
-    .order("position", { ascending: true });
+  const events = await prisma.eventType.findMany({
+    where: {
+      userId: user.id,
+      isActive: true,
+      isPrivate: false
+    },
+    orderBy: { createdAt: "asc" }
+  });
 
   const displayName = user.name || user.username || "?";
   const avatarLetter = displayName[0]?.toUpperCase() || "?";
