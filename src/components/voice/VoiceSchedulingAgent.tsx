@@ -267,17 +267,22 @@ export function VoiceSchedulingAgent({
   }, [messages, interimTranscript]);
 
   // Speak the first message ONLY after the user has manually used the mic at least once.
-  // This avoids any audio playback during the very first render cycle, which has been the main source of
-  // the persistent "removeChild" crashes (especially with Google Translate and other extensions active).
+  // The very first greeting is deliberately text-only and is NEVER auto-spoken via audio.
+  // Speaking only begins for messages that arrive after the user has clicked the microphone at least once.
+  //
+  // This is currently the strongest protection against the early "removeChild" crashes that occur during
+  // the initial mount when browser extensions (especially Google Translate) are actively modifying the DOM.
   useEffect(() => {
     if (!isMountedRef.current) return;
+
+    // Only speak assistant responses that come *after* the user has manually started a voice interaction.
     if (selectedVoice && lastAssistantText && !hasSpokenInitial && hasUserStartedVoiceRef.current) {
       const timer = setTimeout(() => {
-        if (isMountedRef.current && hasUserStartedVoiceRef.current) {
+        if (isMountedRef.current) {
           speak(lastAssistantText);
           setHasSpokenInitial(true);
         }
-      }, 120);
+      }, 100);
       return () => clearTimeout(timer);
     }
   }, [selectedVoice, lastAssistantText]);
@@ -688,7 +693,7 @@ export function VoiceSchedulingAgent({
         <div style={{ marginTop: 8, fontSize: 12, color: COLORS.textDarkMuted }}>
           {isListening 
             ? 'Listening… (or press Space)' 
-            : 'Click the mic to start — the first greeting is shown in text only for stability'}
+            : 'Click the mic to begin — the opening greeting is text-only (no audio on first load)'}
         </div>
       </div>
 
