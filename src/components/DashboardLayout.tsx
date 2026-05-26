@@ -25,26 +25,78 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const isActive = (href: string) => pathname === href;
 
   return (
-    <div style={{ display: "flex", minHeight: "100vh", background: colors.bg }}>
+    <div className="app-layout" style={{ display: "flex", minHeight: "100vh", background: colors.bg }}>
+      <style>{`
+        .sidebar-container {
+          transition: all 0.3s ease;
+          overflow: hidden;
+          display: flex;
+          flex-direction: column;
+          position: relative;
+          z-index: 50;
+          flex-shrink: 0;
+        }
+        .mobile-overlay {
+          display: none;
+        }
+        .main-content {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          min-width: 0;
+        }
+        @media (max-width: 768px) {
+          .sidebar-container {
+            position: fixed;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            width: 260px !important;
+            transform: translateX(${sidebarOpen ? '0' : '-100%'});
+          }
+          .mobile-overlay {
+            display: ${sidebarOpen ? 'block' : 'none'};
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(2px);
+            z-index: 40;
+          }
+        }
+      `}</style>
+
+      {/* Mobile Overlay Backdrop */}
+      <div className="mobile-overlay" onClick={() => setSidebarOpen(false)} />
+
       {/* Sidebar */}
       <div
+        className="sidebar-container"
         style={{
           width: sidebarOpen ? 260 : 0,
           background: colors.cardBg,
           borderRight: `1px solid ${colors.border}`,
-          transition: "width 0.3s ease",
-          overflow: "hidden",
-          display: "flex",
-          flexDirection: "column",
-          position: "relative",
-          zIndex: 40,
         }}
       >
-        <div style={{ padding: "24px 20px", borderBottom: `1px solid ${colors.border}` }}>
-          <Link href="/" style={{ textDecoration: "none" }}>
-            <div style={{ fontSize: 18, fontWeight: 700, color: colors.text }}>Planxo</div>
-          </Link>
-          <div style={{ fontSize: 12, color: colors.textMuted, marginTop: 4 }}>Scheduling Platform</div>
+        <div style={{ padding: "24px 20px", borderBottom: `1px solid ${colors.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <Link href="/" style={{ textDecoration: "none" }}>
+              <div style={{ fontSize: 18, fontWeight: 700, color: colors.text }}>Planxo</div>
+            </Link>
+            <div style={{ fontSize: 12, color: colors.textMuted, marginTop: 4 }}>Scheduling Platform</div>
+          </div>
+          {/* Mobile close button inside sidebar */}
+          <button
+            className="mobile-close-btn"
+            onClick={() => setSidebarOpen(false)}
+            style={{ background: "none", border: "none", color: colors.text, cursor: "pointer", display: "none" }}
+          >
+            <X size={20} />
+          </button>
+          <style>{`
+            @media (max-width: 768px) {
+              .mobile-close-btn { display: block !important; }
+            }
+          `}</style>
         </div>
 
         <nav style={{ flex: 1, padding: "16px 8px", overflow: "auto" }}>
@@ -52,6 +104,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             <Link
               key={href}
               href={href}
+              onClick={() => {
+                if (window.innerWidth <= 768) setSidebarOpen(false);
+              }}
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -117,7 +172,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       </div>
 
       {/* Main Content */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+      <div className="main-content">
         {/* Top Bar */}
         <div
           style={{
@@ -142,7 +197,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               justifyContent: "center",
             }}
           >
-            {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
+            <Menu size={20} />
           </button>
           <div style={{ fontSize: 14, color: colors.textMuted }}>Welcome back!</div>
         </div>
