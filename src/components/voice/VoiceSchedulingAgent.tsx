@@ -37,6 +37,19 @@ export function VoiceSchedulingAgent({
   showTranscript = true,
   className = '',
 }: VoiceSchedulingAgentProps) {
+  // Cognac + Gold color palette (matching Planxo branding)
+  const COLORS = {
+    bg: '#1a1208',
+    cardBg: '#0f0a05',
+    gold: '#c8a96e',
+    goldDark: '#a07840',
+    text: '#f5ead8',
+    textMuted: '#a08060',
+    textDarkMuted: '#80604a',
+    border: 'rgba(200,169,110,0.2)',
+    red: '#ef4444',
+    green: '#10b981',
+  };
   // Core conversation state
   const [messages, setMessages] = useState<Message[]>([]);
   const [state, setState] = useState<string>('greeting');
@@ -56,6 +69,8 @@ export function VoiceSchedulingAgent({
   const [interimTranscript, setInterimTranscript] = useState('');
   const [speechError, setSpeechError] = useState('');
   const [isLoadingVoices, setIsLoadingVoices] = useState(true);
+  const [lastAssistantText, setLastAssistantText] = useState('');
+  const [hasSpokenInitial, setHasSpokenInitial] = useState(false);
 
   // Refs
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -150,6 +165,14 @@ export function VoiceSchedulingAgent({
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, interimTranscript]);
 
+  // Speak the first message (or pending message) once we have a voice selected
+  useEffect(() => {
+    if (selectedVoice && lastAssistantText && !hasSpokenInitial) {
+      speak(lastAssistantText);
+      setHasSpokenInitial(true);
+    }
+  }, [selectedVoice, lastAssistantText]);
+
   // === TTS ===
   const getTTSLanguage = (langCode: string): 'fr' | 'en' => langCode.startsWith('fr') ? 'fr' : 'en';
 
@@ -207,9 +230,18 @@ export function VoiceSchedulingAgent({
       };
 
       await audio.play();
-    } catch (err) {
-      console.error('Speak error:', err);
+    } catch (err: any) {
+      console.error('Speak error (ElevenLabs TTS):', err);
       setIsSpeaking(false);
+      
+      // Show helpful error to user
+      if (err.message?.includes('quota') || err.message?.includes('429')) {
+        setSpeechError('ElevenLabs quota reached for this voice. Try another voice or wait a bit.');
+      } else {
+        setSpeechError('Could not generate voice. The AI will continue in text only for now.');
+      }
+      // Clear error after a few seconds
+      setTimeout(() => setSpeechError(''), 4500);
     }
   }, [selectedVoice, selectedLang, volume, continuousMode, mode, isListening, isProcessing, stopSpeaking]);
 
@@ -315,7 +347,15 @@ export function VoiceSchedulingAgent({
   const handleAssistantResponse = (text: string) => {
     setMessages(prev => [...prev, { role: 'assistant', text, timestamp: new Date() }]);
     setIsProcessing(false);
-    speak(text);
+    setLastAssistantText(text);
+
+    // Only speak if we have a voice selected (prevents silent first greeting)
+    if (selectedVoice) {
+      speak(text);
+    } else {
+      // Will speak automatically once a voice is chosen (see useEffect below)
+      console.log('[VoiceAgent] Waiting for voice selection before speaking...');
+    }
   };
 
   // === Controls ===
@@ -372,7 +412,8 @@ export function VoiceSchedulingAgent({
       {/* Controls Bar */}
       <div style={{
         display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 16,
-        padding: 12, background: '#f8f5f0', borderRadius: 12, alignItems: 'center'
+        padding: 12, background: COLORS.cardBg, borderRadius: 12, alignItems: 'center',
+        border: `1px solid ${COLORS.border}`
       }}>
         <div>
           <select value={selectedLang} onChange={e => setSelectedLang(e.target.value)} disabled={isListening || isProcessing}
@@ -403,8 +444,12 @@ export function VoiceSchedulingAgent({
         </div>
 
         <button onClick={resetConversation} style={{
-          marginLeft: 'auto', padding: '6px 14px', borderRadius: 8, border: '1px solid #c8a96e',
-          background: 'white', cursor: 'pointer', fontSize: 13
+          marginLeft: 'auto', padding: '6px 14px', borderRadius: 8, 
+          border: `1px solid ${COLORS.gold}`,
+          background: COLORS.cardBg, 
+          color: COLORS.gold,
+          cursor: 'pointer', 
+          fontSize: 13
         }}>
           ⟳ New conversation
         </button>
@@ -432,26 +477,93 @@ export function VoiceSchedulingAgent({
           {isListening ? '⏹ Release to stop' : '🎤 Hold or click to speak'}
         </button>
 
-        <div style={{ marginTop: 8, fontSize: 12, color: '#80604a' }}>
+        <div style={{ marginTop: 8, fontSize: 12, color: COLORS.textDarkMuted }}>
           {isListening ? 'Listening… (or press Space)' : 'Press Space to talk • I to interrupt'}
         </div>
       </div>
 
-      {/* Interrupt + Status */}
-      {(isSpeaking || isListening) && (
-        <div style={{ textAlign: 'center', marginBottom: 16 }}>
-          <button onClick={interrupt} style={{
-            padding: '8px 20px', background: '#fee2e2', color: '#b91c1c', border: 'none',
-            borderRadius: 999, fontWeight: 600, cursor: 'pointer'
-          }}>
-            ⏹ Stop speaking / listening
+      {/* Quick voice commands */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center', marginBottom: 16 }}>
+        {[
+          'Je veux prendre un rendez-vous',
+          'Demain à 14h30',
+          'Quel est votre nom?',
+          'Oui c\'est correct',
+          'Non, pas cette heure'
+        ].map((phrase, i) => (
+          <button
+            key={i}
+            onClick={() => handleSendMessage(phrase)}
+            disabled={isProcessing || isListening}
+            style={{
+              fontSize: 12,
+              padding: '5px 11px',
+              borderRadius: 999,
+              border: `1px solid ${COLORS.border}`,
+              background: 'transparent',
+              color: COLORS.gold,
+              cursor: 'pointer',
+              opacity: isProcessing ? 0.5 : 1
+            }}
+          >
+            {phrase}
           </button>
+        ))}
+      </div>
+
+      {/* Interrupt + Status */}
+      <div style={{ textAlign: 'center', marginBottom: 12 }}>
+        {(isSpeaking || isListening) ? (
+          <button onClick={interrupt} style={{
+            padding: '8px 20px', 
+            background: '#3f1f1f', 
+            color: COLORS.red, 
+            border: `1px solid ${COLORS.red}`,
+            borderRadius: 999, 
+            fontWeight: 600, 
+            cursor: 'pointer'
+          }}>
+            ⏹ Stop {isSpeaking ? 'speaking' : 'listening'}
+          </button>
+        ) : lastAssistantText ? (
+          <button 
+            onClick={() => speak(lastAssistantText)} 
+            disabled={!selectedVoice || isProcessing}
+            style={{
+              padding: '6px 16px',
+              background: 'transparent',
+              color: COLORS.gold,
+              border: `1px solid ${COLORS.border}`,
+              borderRadius: 999,
+              fontSize: 13,
+              cursor: 'pointer'
+            }}
+          >
+            🔊 Replay last response
+          </button>
+        ) : null}
+      </div>
+
+      {/* Speaking indicator */}
+      {isSpeaking && (
+        <div style={{ 
+          textAlign: 'center', 
+          color: COLORS.gold, 
+          fontSize: 13, 
+          marginBottom: 8,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 8
+        }}>
+          <span style={{ animation: 'pulse 1.2s infinite' }}>🔊</span> 
+          Speaking with {selectedVoiceName || 'ElevenLabs'}...
         </div>
       )}
 
       {/* Live interim + errors */}
       {interimTranscript && (
-        <div style={{ textAlign: 'center', marginBottom: 12, fontStyle: 'italic', color: '#c8a96e' }}>
+        <div style={{ textAlign: 'center', marginBottom: 12, fontStyle: 'italic', color: COLORS.gold }}>
           You: “{interimTranscript}”
         </div>
       )}
@@ -459,8 +571,8 @@ export function VoiceSchedulingAgent({
 
       {/* Conversation */}
       <div style={{
-        border: '1px solid #e5d9c2', borderRadius: 16, minHeight: 280, maxHeight: 420,
-        overflowY: 'auto', padding: 20, background: '#fdfaf3', marginBottom: 12
+        border: `1px solid ${COLORS.border}`, borderRadius: 16, minHeight: 280, maxHeight: 420,
+        overflowY: 'auto', padding: 20, background: COLORS.cardBg, marginBottom: 12
       }}>
         {messages.length === 0 && (
           <div style={{ textAlign: 'center', color: '#a08060', paddingTop: 40 }}>
@@ -477,9 +589,9 @@ export function VoiceSchedulingAgent({
               maxWidth: '82%',
               padding: '10px 16px',
               borderRadius: 14,
-              background: msg.role === 'user' ? '#c8a96e' : '#fff',
-              color: msg.role === 'user' ? '#1a1208' : '#222',
-              boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+              background: msg.role === 'user' ? COLORS.gold : COLORS.bg,
+              color: msg.role === 'user' ? COLORS.bg : COLORS.text,
+              border: msg.role === 'assistant' ? `1px solid ${COLORS.border}` : 'none'
             }}>
               <div style={{ fontSize: 11, opacity: 0.6, marginBottom: 2 }}>
                 {msg.role === 'user' ? 'You' : professionalName}
@@ -520,8 +632,9 @@ export function VoiceSchedulingAgent({
             flex: 1,
             padding: '11px 14px',
             borderRadius: 10,
-            border: '1px solid #d4c7a8',
-            background: '#fff',
+            border: `1px solid ${COLORS.border}`,
+            background: COLORS.cardBg,
+            color: COLORS.text,
             fontSize: 14,
           }}
         />
