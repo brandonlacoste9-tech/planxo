@@ -105,7 +105,8 @@ export default function OnboardingPage() {
     });
 
     if (!res.ok) {
-      setError("Erreur lors de la sauvegarde.");
+      const data = await res.json().catch(() => ({}));
+      setError(data.error || "Erreur lors de la sauvegarde.");
       setLoading(false);
       return;
     }
