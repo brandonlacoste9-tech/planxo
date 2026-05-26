@@ -1,6 +1,7 @@
 'use client';
 
 import { VoiceSchedulingAgent } from '@/components/voice/VoiceSchedulingAgent';
+import { VoiceAgentErrorBoundary } from '@/components/voice/ErrorBoundary';
 
 export default function VoiceDemoPage() {
   return (
@@ -32,11 +33,13 @@ export default function VoiceDemoPage() {
           </div>
         </div>
 
-        <VoiceSchedulingAgent 
-          mode="demo" 
-          professionalName="Dr. Sarah Martin"
-          showTranscript={true}
-        />
+        <VoiceAgentErrorBoundary>
+          <VoiceSchedulingAgent 
+            mode="demo" 
+            professionalName="Dr. Sarah Martin"
+            showTranscript={true}
+          />
+        </VoiceAgentErrorBoundary>
 
         <div style={{ 
           marginTop: 40, 

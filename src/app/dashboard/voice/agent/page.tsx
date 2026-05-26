@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { VoiceSchedulingAgent } from '@/components/voice/VoiceSchedulingAgent';
+import { VoiceAgentErrorBoundary } from '@/components/voice/ErrorBoundary';
 
 export default function DashboardVoiceAgentPage() {
   const [user, setUser] = useState<any>(null);
@@ -45,13 +46,15 @@ export default function DashboardVoiceAgentPage() {
       {loading ? (
         <div style={{ padding: 60, textAlign: 'center', color: '#888' }}>Chargement de votre profil…</div>
       ) : (
-        <VoiceSchedulingAgent
-          mode="dashboard"
-          professionalName={professionalName}
-          username={user?.username || 'planxo'}
-          eventTypeSlug={defaultEvent}
-          defaultLanguage="fr-CA"
-        />
+        <VoiceAgentErrorBoundary>
+          <VoiceSchedulingAgent
+            mode="dashboard"
+            professionalName={professionalName}
+            username={user?.username || 'planxo'}
+            eventTypeSlug={defaultEvent}
+            defaultLanguage="fr-CA"
+          />
+        </VoiceAgentErrorBoundary>
       )}
 
       <div style={{ marginTop: 32, fontSize: 12, color: '#888', textAlign: 'center' }}>

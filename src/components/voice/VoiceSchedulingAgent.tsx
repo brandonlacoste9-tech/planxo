@@ -79,6 +79,15 @@ export function VoiceSchedulingAgent({
   const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Refs to avoid stale closures in callbacks
+  const isListeningRef = useRef(isListening);
+  const continuousModeRef = useRef(continuousMode);
+  const isProcessingRef = useRef(isProcessing);
+
+  isListeningRef.current = isListening;
+  continuousModeRef.current = continuousMode;
+  isProcessingRef.current = isProcessing;
+
   // Tools configuration
   const getTools = useCallback((): AITools => ({
     checkAvailability: async (date: string) => {
@@ -223,9 +232,17 @@ export function VoiceSchedulingAgent({
           URL.revokeObjectURL(currentAudioUrlRef.current);
           currentAudioUrlRef.current = null;
         }
-        // Continuous mode
-        if (continuousMode && !isListening && !isProcessing) {
-          setTimeout(() => startListening(), 620);
+        // Continuous mode - use refs to avoid stale state
+        if (continuousModeRef.current && 
+            !isListeningRef.current && 
+            !isProcessingRef.current &&
+            recognitionRef.current) {
+          // Small delay + extra guard
+          setTimeout(() => {
+            if (!isListeningRef.current && !isProcessingRef.current) {
+              startListening();
+            }
+          }, 650);
         }
       };
 
@@ -243,13 +260,16 @@ export function VoiceSchedulingAgent({
       // Clear error after a few seconds
       setTimeout(() => setSpeechError(''), 4500);
     }
-  }, [selectedVoice, selectedLang, volume, continuousMode, mode, isListening, isProcessing, stopSpeaking]);
+  }, [selectedVoice, selectedLang, volume, mode, stopSpeaking]);
 
-  // === Speech Recognition with advanced VAD ===
+  // === Speech Recognition with advanced VAD (hardened) ===
   const startListening = useCallback(() => {
+    // Guard: don't start if already listening or processing
+    if (isListening || isProcessing) return;
+
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      setSpeechError('Microphone not supported in this browser. Use Chrome or Edge.');
+      setSpeechError('Microphone not supported in this browser (use Chrome/Edge).');
       return;
     }
 
@@ -258,59 +278,69 @@ export function VoiceSchedulingAgent({
     setInterimTranscript('');
 
     if (!recognitionRef.current) {
-      const recognition = new SpeechRecognition();
-      recognition.continuous = true;
-      recognition.interimResults = true;
-      recognition.maxAlternatives = 1;
+      try {
+        const recognition = new SpeechRecognition();
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.maxAlternatives = 1;
 
-      recognition.onresult = (event: any) => {
-        let interim = '';
-        let final = '';
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          const transcript = event.results[i][0].transcript;
-          if (event.results[i].isFinal) final = transcript;
-          else interim = transcript;
-        }
-        setInterimTranscript(interim);
+        recognition.onresult = (event: any) => {
+          let interim = '';
+          let final = '';
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            const transcript = event.results[i][0].transcript;
+            if (event.results[i].isFinal) final = transcript;
+            else interim = transcript;
+          }
+          setInterimTranscript(interim);
 
-        // Reset silence timer on any activity
-        if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-        silenceTimerRef.current = setTimeout(() => {
-          if (isListening) stopListening();
-        }, 2750);
+          if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+          silenceTimerRef.current = setTimeout(() => {
+            if (isListeningRef.current) stopListening();
+          }, 2750);
 
-        if (final.trim()) {
+          if (final.trim()) {
+            setInterimTranscript('');
+            if (!continuousModeRef.current) stopListening();
+            handleSendMessage(final.trim());
+          }
+        };
+
+        recognition.onerror = (event: any) => {
+          if (event.error !== 'no-speech') {
+            setSpeechError(event.error === 'not-allowed' 
+              ? 'Please allow microphone access in your browser.' 
+              : 'Speech recognition error.');
+          }
+          setIsListening(false);
+        };
+
+        recognition.onend = () => {
+          setIsListening(false);
           setInterimTranscript('');
-          if (!continuousMode) stopListening();
-          handleSendMessage(final.trim());
-        }
-      };
+          if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+        };
 
-      recognition.onerror = (event: any) => {
-        if (event.error !== 'no-speech') {
-          setSpeechError(event.error === 'not-allowed' ? 'Please allow microphone access.' : 'Speech recognition error.');
-        }
-        stopListening();
-      };
-
-      recognition.onend = () => {
-        setIsListening(false);
-        setInterimTranscript('');
-        if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-      };
-
-      recognitionRef.current = recognition;
+        recognitionRef.current = recognition;
+      } catch (e) {
+        console.error('Failed to create SpeechRecognition', e);
+        setSpeechError('Could not initialize microphone.');
+        return;
+      }
     }
 
     try {
-      recognitionRef.current.lang = selectedLang;
-      recognitionRef.current.start();
-      setIsListening(true);
+      if (recognitionRef.current) {
+        recognitionRef.current.lang = selectedLang;
+        recognitionRef.current.start();
+        setIsListening(true);
+      }
     } catch (e) {
-      setSpeechError('Could not start microphone.');
+      console.error('Error starting recognition:', e);
+      setSpeechError('Could not start microphone. Please try again.');
       setIsListening(false);
     }
-  }, [selectedLang, continuousMode, stopSpeaking, isListening]);
+  }, [selectedLang, stopSpeaking, isListening, isProcessing]);
 
   const stopListening = useCallback(() => {
     if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
@@ -322,8 +352,9 @@ export function VoiceSchedulingAgent({
   }, []);
 
   const toggleListening = useCallback(() => {
-    isListening ? stopListening() : startListening();
-  }, [isListening, startListening, stopListening]);
+    if (isProcessingRef.current) return;
+    isListeningRef.current ? stopListening() : startListening();
+  }, [startListening, stopListening]);
 
   // === Core message handling ===
   const handleSendMessage = async (text: string) => {
