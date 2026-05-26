@@ -46,6 +46,12 @@ export default function DashboardPage() {
         fetch("/api/v2/bookings?timeFilter=upcoming"),
       ]);
       const user = await userRes.json();
+      
+      if (!user.username) {
+        window.location.href = "/onboarding";
+        return;
+      }
+      
       const bookingsData = await bookingsRes.json();
 
       if (user.username) setUserSlug(user.username);

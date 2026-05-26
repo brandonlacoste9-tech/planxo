@@ -98,7 +98,7 @@ export default function OnboardingPage() {
     }
 
     // Upsert user record + seed schedule, availability, event types
-    const res = await fetch("/api/me", {
+    const res = await fetch("/api/v2/onboarding", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name, username, timeZone }),
