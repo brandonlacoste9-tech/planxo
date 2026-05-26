@@ -7,6 +7,7 @@ import { VoiceAgentErrorBoundary } from '@/components/voice/ErrorBoundary';
 export default function DashboardVoiceAgentPage() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [agentKey, setAgentKey] = useState(0);
 
   useEffect(() => {
     async function loadUser() {
@@ -46,8 +47,31 @@ export default function DashboardVoiceAgentPage() {
       {loading ? (
         <div style={{ padding: 60, textAlign: 'center', color: '#888' }}>Chargement de votre profil…</div>
       ) : (
-        <VoiceAgentErrorBoundary>
+        <VoiceAgentErrorBoundary
+          fallback={
+            <div style={{ textAlign: 'center', padding: 20 }}>
+              <p style={{ color: '#a08060', marginBottom: 12 }}>
+                The voice agent crashed. Try resetting it.
+              </p>
+              <button
+                onClick={() => setAgentKey(k => k + 1)}
+                style={{
+                  background: '#c8a96e',
+                  color: '#1a1208',
+                  padding: '10px 20px',
+                  borderRadius: 8,
+                  border: 'none',
+                  fontWeight: 600,
+                  cursor: 'pointer'
+                }}
+              >
+                Reset Voice Agent
+              </button>
+            </div>
+          }
+        >
           <VoiceSchedulingAgent
+            key={agentKey}
             mode="dashboard"
             professionalName={professionalName}
             username={user?.username || 'planxo'}

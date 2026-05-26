@@ -83,7 +83,7 @@ export class VoiceAgentErrorBoundary extends React.Component<
             </div>
 
             <div style={{ marginTop: 16, fontSize: 11, color: '#80604a' }}>
-              Check browser console (F12) for technical details.
+              Check browser console (F12) for technical details. If this keeps happening, try using the mic more slowly or disable "Mode continu".
             </div>
           </div>
         )

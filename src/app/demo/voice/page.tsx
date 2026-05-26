@@ -1,9 +1,12 @@
 'use client';
 
+import { useState } from 'react';
 import { VoiceSchedulingAgent } from '@/components/voice/VoiceSchedulingAgent';
 import { VoiceAgentErrorBoundary } from '@/components/voice/ErrorBoundary';
 
 export default function VoiceDemoPage() {
+  const [agentKey, setAgentKey] = useState(0);
+
   return (
     <div style={{ minHeight: '100vh', background: '#1a1208', padding: '40px 20px' }}>
       <div style={{ maxWidth: 860, margin: '0 auto' }}>
@@ -33,8 +36,39 @@ export default function VoiceDemoPage() {
           </div>
         </div>
 
-        <VoiceAgentErrorBoundary>
+        <VoiceAgentErrorBoundary
+          fallback={
+            <div style={{ marginBottom: 20 }}>
+              <div style={{
+                padding: 20,
+                background: '#1a1208',
+                color: '#f5ead8',
+                borderRadius: 12,
+                border: '1px solid #c8a96e',
+                textAlign: 'center',
+                marginBottom: 12
+              }}>
+                The voice agent crashed. This usually happens with very rapid clicking or Continuous Mode during heavy use.
+              </div>
+              <button
+                onClick={() => setAgentKey(k => k + 1)}
+                style={{
+                  background: '#c8a96e',
+                  color: '#1a1208',
+                  padding: '10px 24px',
+                  borderRadius: 8,
+                  border: 'none',
+                  fontWeight: 600,
+                  cursor: 'pointer'
+                }}
+              >
+                Reset Voice Agent
+              </button>
+            </div>
+          }
+        >
           <VoiceSchedulingAgent 
+            key={agentKey}
             mode="demo" 
             professionalName="Dr. Sarah Martin"
             showTranscript={true}
