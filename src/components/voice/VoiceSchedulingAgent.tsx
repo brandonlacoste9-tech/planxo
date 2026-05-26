@@ -75,12 +75,14 @@ export function VoiceSchedulingAgent({
   // Safe mode: automatically disables Continuous Mode after the first audio error
   const [safeModeActive, setSafeModeActive] = useState(false);
 
+  // Global safe rendering mode - when true, we heavily throttle interactions and avoid risky operations
+  // to recover from DOM corruption (especially caused by extensions like Google Translate)
+  const [ultraSafeMode, setUltraSafeMode] = useState(false);
+
   // Mount guard to prevent speaking too early during initial render / extension interference
   const isMountedRef = useRef(false);
 
   // Track if the user has manually used the mic at least once.
-  // We do NOT auto-play the very first greeting via audio until the user has interacted.
-  // This is a strong guard against early "removeChild" crashes during mount + heavy extension interference.
   const hasUserStartedVoiceRef = useRef(false);
 
   // Refs
@@ -116,42 +118,61 @@ export function VoiceSchedulingAgent({
       rec.lang = selectedLang;
 
       rec.onresult = (event: any) => {
-        let interim = '';
-        let final = '';
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          const transcript = event.results[i][0].transcript;
-          if (event.results[i].isFinal) final = transcript;
-          else interim = transcript;
-        }
-        setInterimTranscript(interim);
+        try {
+          let interim = '';
+          let final = '';
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            const transcript = event.results[i][0].transcript;
+            if (event.results[i].isFinal) final = transcript;
+            else interim = transcript;
+          }
+          setInterimTranscript(interim);
 
-        if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-        silenceTimerRef.current = setTimeout(() => {
-          if (isListeningRef.current) stopListening();
-        }, 2600);
+          if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+          silenceTimerRef.current = setTimeout(() => {
+            if (isListeningRef.current) stopListening();
+          }, 2600);
 
-        if (final.trim()) {
-          setInterimTranscript('');
-          if (!continuousModeRef.current) stopListening();
-          handleSendMessage(final.trim());
+          if (final.trim()) {
+            setInterimTranscript('');
+            if (!continuousModeRef.current) stopListening();
+            handleSendMessage(final.trim());
+          }
+        } catch (err) {
+          console.error('[VoiceAgent] Error in onresult handler:', err);
+          // If we get repeated errors in handlers, enter ultra safe mode
+          setUltraSafeMode(true);
+          setIsListening(false);
         }
       };
 
       rec.onerror = (event: any) => {
-        if (event.error !== 'no-speech') {
-          setSpeechError(
-            event.error === 'not-allowed'
-              ? 'Please allow microphone access.'
-              : 'Speech recognition error.'
-          );
+        try {
+          if (event.error !== 'no-speech') {
+            setSpeechError(
+              event.error === 'not-allowed'
+                ? 'Please allow microphone access.'
+                : 'Speech recognition error.'
+            );
+          }
+          setIsListening(false);
+        } catch (err) {
+          console.error('[VoiceAgent] Error in onerror handler:', err);
+          setUltraSafeMode(true);
+          setIsListening(false);
         }
-        setIsListening(false);
       };
 
       rec.onend = () => {
-        setIsListening(false);
-        setInterimTranscript('');
-        if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+        try {
+          setIsListening(false);
+          setInterimTranscript('');
+          if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+        } catch (err) {
+          console.error('[VoiceAgent] Error in onend handler:', err);
+          setUltraSafeMode(true);
+          setIsListening(false);
+        }
       };
 
       return rec;
@@ -412,6 +433,10 @@ export function VoiceSchedulingAgent({
 
   // === Fast & reliable startListening (with extra guards) ===
   const startListening = useCallback(() => {
+    if (ultraSafeMode) {
+      setSpeechError('Safe mode active due to previous issues. Please refresh the page.');
+      return;
+    }
     if (isListeningRef.current || isProcessingRef.current) {
       return;
     }
@@ -432,13 +457,9 @@ export function VoiceSchedulingAgent({
       setSpeechError('');
       setInterimTranscript('');
 
-      // Mark that the user has manually started voice interaction at least once.
-      // This unlocks auto-speaking of assistant messages (including the initial greeting if it hasn't played yet).
       hasUserStartedVoiceRef.current = true;
 
-      // Always set lang immediately before start
       recognitionRef.current.lang = selectedLang;
-
       recognitionRef.current.start();
 
       setIsListening(true);
@@ -446,7 +467,6 @@ export function VoiceSchedulingAgent({
     } catch (e: any) {
       console.error('Error starting SpeechRecognition:', e);
 
-      // Handle the very common "already started" error gracefully
       if (String(e?.message || e).toLowerCase().includes('already started')) {
         try { recognitionRef.current?.abort(); } catch {}
         setIsListening(false);
@@ -457,7 +477,7 @@ export function VoiceSchedulingAgent({
         isListeningRef.current = false;
       }
     }
-  }, [selectedLang, createRecognition, stopSpeaking]);
+  }, [selectedLang, createRecognition, stopSpeaking, ultraSafeMode]);
 
   const stopListening = useCallback(() => {
     if (silenceTimerRef.current) {
@@ -485,14 +505,17 @@ export function VoiceSchedulingAgent({
     if (isListeningRef.current) {
       stopListening();
     } else {
+      if (ultraSafeMode) {
+        setSpeechError('Safe mode active. Please refresh the page to use the microphone again.');
+        return;
+      }
+
       // Optimistic update for instant perceived speed
       setIsListening(true);
       isListeningRef.current = true;
 
-      // Mark user interaction so the initial greeting can be spoken (if it hasn't been yet)
       hasUserStartedVoiceRef.current = true;
 
-      // Tiny delay so the browser has time to paint the "Listening" state
       setTimeout(() => {
         startListening();
       }, 25);
@@ -668,11 +691,30 @@ export function VoiceSchedulingAgent({
         </div>
       )}
 
+      {/* Ultra Safe Mode - triggered by repeated internal errors (often extension interference) */}
+      {ultraSafeMode && (
+        <div style={{
+          background: '#3f1f1f',
+          border: '1px solid #ef4444',
+          color: '#fca5a5',
+          padding: '12px 16px',
+          borderRadius: 8,
+          fontSize: 13,
+          marginBottom: 12,
+          textAlign: 'center',
+          lineHeight: 1.4
+        }}>
+          <strong>Ultra Safe Mode active</strong><br />
+          The voice agent encountered repeated internal errors (commonly caused by browser extensions like Google Translate).<br />
+          Please refresh the page for best results.
+        </div>
+      )}
+
       {/* Main Mic Button + Visualizer */}
       <div style={{ textAlign: 'center', marginBottom: 16 }}>
         <button
           onClick={toggleListening}
-          disabled={isProcessing || isSpeaking || !selectedVoice}
+          disabled={isProcessing || isSpeaking || !selectedVoice || ultraSafeMode}
           style={{
             padding: '18px 36px',
             fontSize: 18,
