@@ -78,6 +78,11 @@ export function VoiceSchedulingAgent({
   // Mount guard to prevent speaking too early during initial render / extension interference
   const isMountedRef = useRef(false);
 
+  // Track if the user has manually used the mic at least once.
+  // We do NOT auto-play the very first greeting via audio until the user has interacted.
+  // This is a strong guard against early "removeChild" crashes during mount + heavy extension interference.
+  const hasUserStartedVoiceRef = useRef(false);
+
   // Refs
   const audioRef = useRef<HTMLAudioElement | null>(null);           // React-controlled audio element
   const currentAudioUrlRef = useRef<string | null>(null);
@@ -261,17 +266,18 @@ export function VoiceSchedulingAgent({
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, interimTranscript]);
 
-  // Speak the first message only after mount + voice is ready (prevents early audio DOM conflicts)
+  // Speak the first message ONLY after the user has manually used the mic at least once.
+  // This avoids any audio playback during the very first render cycle, which has been the main source of
+  // the persistent "removeChild" crashes (especially with Google Translate and other extensions active).
   useEffect(() => {
     if (!isMountedRef.current) return;
-    if (selectedVoice && lastAssistantText && !hasSpokenInitial) {
-      // Small delay on initial speak to let React and the browser settle (especially with extensions)
+    if (selectedVoice && lastAssistantText && !hasSpokenInitial && hasUserStartedVoiceRef.current) {
       const timer = setTimeout(() => {
-        if (isMountedRef.current) {
+        if (isMountedRef.current && hasUserStartedVoiceRef.current) {
           speak(lastAssistantText);
           setHasSpokenInitial(true);
         }
-      }, 180);
+      }, 120);
       return () => clearTimeout(timer);
     }
   }, [selectedVoice, lastAssistantText]);
@@ -421,6 +427,10 @@ export function VoiceSchedulingAgent({
       setSpeechError('');
       setInterimTranscript('');
 
+      // Mark that the user has manually started voice interaction at least once.
+      // This unlocks auto-speaking of assistant messages (including the initial greeting if it hasn't played yet).
+      hasUserStartedVoiceRef.current = true;
+
       // Always set lang immediately before start
       recognitionRef.current.lang = selectedLang;
 
@@ -473,6 +483,9 @@ export function VoiceSchedulingAgent({
       // Optimistic update for instant perceived speed
       setIsListening(true);
       isListeningRef.current = true;
+
+      // Mark user interaction so the initial greeting can be spoken (if it hasn't been yet)
+      hasUserStartedVoiceRef.current = true;
 
       // Tiny delay so the browser has time to paint the "Listening" state
       setTimeout(() => {
@@ -673,7 +686,9 @@ export function VoiceSchedulingAgent({
         </button>
 
         <div style={{ marginTop: 8, fontSize: 12, color: COLORS.textDarkMuted }}>
-          {isListening ? 'Listening… (or press Space)' : 'Press Space to talk • I to interrupt'}
+          {isListening 
+            ? 'Listening… (or press Space)' 
+            : 'Click the mic to start — the first greeting is shown in text only for stability'}
         </div>
       </div>
 
