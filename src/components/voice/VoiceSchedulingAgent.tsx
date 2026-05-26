@@ -78,6 +78,7 @@ export function VoiceSchedulingAgent({
   const recognitionRef = useRef<any>(null);
   const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const lastAudioErrorRef = useRef<number>(0);
 
   // Refs to avoid stale closures in callbacks
   const isListeningRef = useRef(isListening);
@@ -329,11 +330,13 @@ export function VoiceSchedulingAgent({
 
         audioEl.onended = null; // prevent duplicate handlers
 
-        // Continuous mode
+        // Continuous mode — but skip auto-restart right after an audio error (prevents cascading crashes)
+        const timeSinceAudioError = Date.now() - lastAudioErrorRef.current;
         if (continuousModeRef.current && 
             !isListeningRef.current && 
             !isProcessingRef.current &&
-            recognitionRef.current) {
+            recognitionRef.current &&
+            timeSinceAudioError > 4000) {
           setTimeout(() => {
             if (!isListeningRef.current && !isProcessingRef.current) {
               startListening();
@@ -344,22 +347,37 @@ export function VoiceSchedulingAgent({
 
       audioEl.onended = handleEnded;
 
-      await audioEl.play();
+      await audioEl.play().catch((playErr) => {
+        // Some browsers block autoplay even after user gesture in edge cases
+        console.warn('Audio play() was blocked or failed:', playErr);
+        throw playErr; // let the outer catch handle cleanup
+      });
     } catch (err: any) {
       console.error('Speak error (ElevenLabs TTS):', err);
       setIsSpeaking(false);
 
+      // Always clean up the object URL on any failure
       if (currentAudioUrlRef.current) {
         try { URL.revokeObjectURL(currentAudioUrlRef.current); } catch {}
         currentAudioUrlRef.current = null;
       }
 
+      // Reset the audio element to a clean state
+      if (audioEl) {
+        try {
+          audioEl.src = '';
+          audioEl.onended = null;
+        } catch {}
+      }
+
       if (err.message?.includes('quota') || err.message?.includes('429')) {
         setSpeechError('ElevenLabs quota reached for this voice. Try another voice or wait a bit.');
+      } else if (err.name === 'NotAllowedError' || String(err).includes('play')) {
+        setSpeechError('Browser blocked audio playback. Click the mic or page once to enable sound.');
       } else {
         setSpeechError('Could not generate voice. The AI will continue in text only for now.');
       }
-      setTimeout(() => setSpeechError(''), 4500);
+      setTimeout(() => setSpeechError(''), 5000);
     }
   }, [selectedVoice, selectedLang, volume, mode, stopSpeaking]);
 
@@ -775,13 +793,28 @@ export function VoiceSchedulingAgent({
         </button>
       </form>
 
-      {/* React-managed <audio> element — prevents "removeChild" DOM crashes during rapid play/stop */}
+      {/* React-managed <audio> element — this is the main defense against removeChild crashes */}
       <audio
         ref={audioRef}
         style={{ display: 'none' }}
-        onError={() => {
+        onError={(e) => {
+          console.error('[VoiceAgent] Audio element error', e);
           setIsSpeaking(false);
-          console.warn('[VoiceAgent] Audio element error');
+          lastAudioErrorRef.current = Date.now();
+
+          // Aggressive cleanup on audio errors to prevent DOM reconciliation crashes
+          const audioEl = audioRef.current;
+          if (audioEl) {
+            try {
+              audioEl.src = '';
+              audioEl.onended = null;
+              audioEl.load();
+            } catch {}
+          }
+          if (currentAudioUrlRef.current) {
+            try { URL.revokeObjectURL(currentAudioUrlRef.current); } catch {}
+            currentAudioUrlRef.current = null;
+          }
         }}
       />
     </div>
