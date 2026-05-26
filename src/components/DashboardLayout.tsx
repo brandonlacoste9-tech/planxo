@@ -18,7 +18,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const navItems = [
     { href: "/dashboard", label: "Dashboard", icon: Home },
     { href: "/event-types", label: "Event Types", icon: Calendar },
-    { href: "/availability", label: "Availability", icon: Settings },
+    { href: "/availability", label: "Availability", icon: Calendar },
+    { href: "/settings", label: "Settings", icon: Settings },
   ];
 
   const isActive = (href: string) => pathname === href;
