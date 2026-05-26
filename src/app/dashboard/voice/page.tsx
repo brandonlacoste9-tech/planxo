@@ -38,6 +38,9 @@ export default function VoiceDashboard() {
   const [voiceError, setVoiceError] = useState('');
 
   const { theme } = useTheme();
+
+  // Link to the new conversational voice agent
+  const voiceAgentUrl = '/dashboard/voice/agent';
   const dark = theme !== "default";
   const tColors = dark ? {
     bg: themes.cognac.bg, text: themes.cognac.text, textMuted: themes.cognac.textMuted,
@@ -163,6 +166,42 @@ export default function VoiceDashboard() {
 
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto', padding: 24, color: tColors.text, background: tColors.bg, minHeight: '100vh' }}>
+      
+      {/* NEW: Direct access to the full voice booking agent */}
+      <div style={{
+        background: 'linear-gradient(90deg, #111 0%, #1f1f1f 100%)',
+        borderRadius: 16,
+        padding: '20px 24px',
+        marginBottom: 28,
+        color: 'white',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 20,
+        flexWrap: 'wrap'
+      }}>
+        <div>
+          <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 2 }}>NOUVEAUTÉ</div>
+          <div style={{ fontSize: 20, fontWeight: 700 }}>Agent Vocal de Réservation</div>
+          <div style={{ opacity: 0.85, fontSize: 14, marginTop: 2 }}>Parlez → Vérifie vos créneaux réels → Crée de vrais rendez-vous</div>
+        </div>
+        <a 
+          href="/dashboard/voice/agent"
+          style={{
+            background: '#c8a96e',
+            color: '#111',
+            padding: '11px 26px',
+            borderRadius: 10,
+            fontWeight: 700,
+            textDecoration: 'none',
+            whiteSpace: 'nowrap',
+            fontSize: 14
+          }}
+        >
+          🎤 Ouvrir l’agent vocal
+        </a>
+      </div>
+
       {/* Header */}
       <div style={{ marginBottom: 32 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
@@ -176,6 +215,20 @@ export default function VoiceDashboard() {
             <p style={{ color: tColors.textMuted }}>Agent vocal intelligent pour automatiser vos rendez-vous</p>
           </div>
           <div style={{ display: 'flex', gap: 12 }}>
+            <a 
+              href="/dashboard/voice/agent"
+              style={{
+                background: '#c8a96e',
+                color: '#111',
+                padding: '8px 18px',
+                borderRadius: 8,
+                fontWeight: 600,
+                textDecoration: 'none',
+                fontSize: 14
+              }}
+            >
+              🎤 Agent vocal en direct
+            </a>
             <a 
               href="/dashboard/voice/credits" 
               style={{
