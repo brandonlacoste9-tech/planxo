@@ -605,7 +605,7 @@ export function VoiceSchedulingAgent({
   const selectedVoiceName = voices.find(v => v.id === selectedVoice)?.name || '';
 
   return (
-    <div className={`voice-agent ${className}`} style={{ fontFamily: 'system-ui, sans-serif' }}>
+    <div className={`voice-agent ${className}`} style={{ fontFamily: 'system-ui, sans-serif' }} translate="no">
       {/* Controls Bar */}
       <div style={{
         display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 16,
@@ -814,17 +814,17 @@ export function VoiceSchedulingAgent({
           gap: 8
         }}>
           <span style={{ animation: 'pulse 1.2s infinite' }}>🔊</span> 
-          Speaking with {selectedVoiceName || 'ElevenLabs'}...
+          <span translate="no">Speaking with {selectedVoiceName || 'ElevenLabs'}...</span>
         </div>
       )}
 
       {/* Live interim + errors */}
       {interimTranscript && (
-        <div style={{ textAlign: 'center', marginBottom: 12, fontStyle: 'italic', color: COLORS.gold }}>
+        <div style={{ textAlign: 'center', marginBottom: 12, fontStyle: 'italic', color: COLORS.gold }} translate="no">
           You: “{interimTranscript}”
         </div>
       )}
-      {speechError && <div style={{ color: '#dc2626', textAlign: 'center', marginBottom: 12 }}>{speechError}</div>}
+      {speechError && <div style={{ color: '#dc2626', textAlign: 'center', marginBottom: 12 }} translate="no">{speechError}</div>}
 
       {/* Conversation */}
       <div style={{
@@ -850,10 +850,10 @@ export function VoiceSchedulingAgent({
               color: msg.role === 'user' ? COLORS.bg : COLORS.text,
               border: msg.role === 'assistant' ? `1px solid ${COLORS.border}` : 'none'
             }}>
-              <div style={{ fontSize: 11, opacity: 0.6, marginBottom: 2 }}>
+              <div style={{ fontSize: 11, opacity: 0.6, marginBottom: 2 }} translate="no">
                 {msg.role === 'user' ? 'You' : professionalName}
               </div>
-              {msg.text}
+              <span translate="no">{msg.text}</span>
             </div>
           </div>
         ))}
