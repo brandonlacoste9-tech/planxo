@@ -95,15 +95,20 @@ export interface BookingConfirmationParams {
   endTime: string | Date;
   meetingUrl?: string;
   uid: string;
+  cancelToken?: string;
 }
 
 export async function sendBookingConfirmation(params: BookingConfirmationParams) {
-  const { to, guestName, hostName, eventTitle, startTime, endTime, meetingUrl, uid } = params;
+  const { to, guestName, hostName, eventTitle, startTime, endTime, meetingUrl, uid, cancelToken } = params;
 
   const formattedStart = formatDateTime(startTime);
   const formattedEnd = formatDateTime(endTime);
-  const cancelUrl = `${BASE_URL}/booking/${uid}/cancel`;
-  const rescheduleUrl = `${BASE_URL}/booking/${uid}/reschedule`;
+  const manageUrl = cancelToken
+    ? `${BASE_URL}/booking/manage?token=${encodeURIComponent(cancelToken)}`
+    : null;
+
+  const cancelUrl = manageUrl ? `${manageUrl}&action=cancel` : `${BASE_URL}/booking/${uid}/cancel`;
+  const rescheduleUrl = manageUrl ? `${manageUrl}&action=reschedule` : `${BASE_URL}/booking/${uid}/reschedule`;
 
   const meetingBlock = meetingUrl
     ? `<tr>

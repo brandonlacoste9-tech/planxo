@@ -214,6 +214,7 @@ export async function POST(request: NextRequest) {
           endTime: booking.endTime || (end.toISOString()),
           meetingUrl: booking.location || undefined,
           uid: booking.uid,
+          cancelToken: booking.cancelToken,
         });
       }
 
