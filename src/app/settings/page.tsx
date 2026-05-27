@@ -555,10 +555,10 @@ function WorkflowsSection({
               </div>
               <input
                 type="checkbox"
-                checked={reminderPrefs.email24h.enabled}
+                checked={reminderPrefs?.email24h?.enabled ?? true}
                 onChange={(e) => setReminderPrefs({
                   ...reminderPrefs,
-                  email24h: { ...reminderPrefs.email24h, enabled: e.target.checked }
+                  email24h: { ...(reminderPrefs?.email24h || {}), enabled: e.target.checked }
                 })}
                 style={{ width: 20, height: 20, accentColor: colors.accent }}
               />
@@ -570,10 +570,10 @@ function WorkflowsSection({
               </label>
               <input
                 type="text"
-                value={reminderPrefs.email24h.subject}
+                value={reminderPrefs?.email24h?.subject || ""}
                 onChange={(e) => setReminderPrefs({
                   ...reminderPrefs,
-                  email24h: { ...reminderPrefs.email24h, subject: e.target.value }
+                  email24h: { ...(reminderPrefs?.email24h || {}), subject: e.target.value }
                 })}
                 style={{ width: "100%", padding: "10px 14px", borderRadius: 8, border: `1px solid ${colors.border}`, background: colors.bg, color: colors.text }}
               />
@@ -585,10 +585,10 @@ function WorkflowsSection({
               </label>
               <textarea
                 rows={5}
-                value={reminderPrefs.email24h.body}
+                value={reminderPrefs?.email24h?.body || ""}
                 onChange={(e) => setReminderPrefs({
                   ...reminderPrefs,
-                  email24h: { ...reminderPrefs.email24h, body: e.target.value }
+                  email24h: { ...(reminderPrefs?.email24h || {}), body: e.target.value }
                 })}
                 style={{ width: "100%", padding: "12px 14px", borderRadius: 8, border: `1px solid ${colors.border}`, background: colors.bg, color: colors.text, fontSize: 14, lineHeight: 1.5 }}
               />
@@ -607,10 +607,10 @@ function WorkflowsSection({
               </div>
               <input
                 type="checkbox"
-                checked={reminderPrefs.sms2h.enabled}
+                checked={reminderPrefs?.sms2h?.enabled ?? false}
                 onChange={(e) => setReminderPrefs({
                   ...reminderPrefs,
-                  sms2h: { ...reminderPrefs.sms2h, enabled: e.target.checked }
+                  sms2h: { ...(reminderPrefs?.sms2h || {}), enabled: e.target.checked }
                 })}
                 style={{ width: 20, height: 20, accentColor: colors.accent }}
               />
@@ -622,10 +622,10 @@ function WorkflowsSection({
               </label>
               <textarea
                 rows={3}
-                value={reminderPrefs.sms2h.message}
+                value={reminderPrefs?.sms2h?.message || ""}
                 onChange={(e) => setReminderPrefs({
                   ...reminderPrefs,
-                  sms2h: { ...reminderPrefs.sms2h, message: e.target.value }
+                  sms2h: { ...(reminderPrefs?.sms2h || {}), message: e.target.value }
                 })}
                 style={{ width: "100%", padding: "12px 14px", borderRadius: 8, border: `1px solid ${colors.border}`, background: colors.bg, color: colors.text, fontSize: 14 }}
               />
