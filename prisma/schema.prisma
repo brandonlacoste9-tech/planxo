@@ -203,3 +203,39 @@ model OutlookAccount {
   @@index([userId])
   @@schema("public")
 }
+
+207	model VoiceAgentConfig {
+208	  id          String   @id @default(cuid())
+209	  userId      String   @unique
+210	  agentId     String   // ElevenLabs agent ID
+211	  agentName   String   @default("Planxo Scheduler")
+212	  systemPrompt String? @db.Text
+213	  voiceId     String?
+214	  language    String   @default("en")
+215	  isActive    Boolean  @default(true)
+216	  createdAt   DateTime @default(now())
+217	  updatedAt   DateTime @updatedAt
+218	
+219	  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+220	
+221	  @@index([userId])
+222	  @@schema("public")
+223	}
+224	
+225	model VoiceAgentConversation {
+226	  id              String   @id @default(cuid())
+227	  userId          String
+228	  agentId         String
+229	  conversationId  String   // ElevenLabs conversation ID
+230	  transcript      Json     @default("[]") // Array of {role, text, timestamp}
+231	  status          String   @default("active") // active, completed, failed
+232	  startTime       DateTime @default(now())
+233	  endTime         DateTime?
+234	  metadata        Json?    // Additional context
+235	
+236	  @@index([userId])
+237	  @@index([agentId])
+238	  @@index([conversationId])
+239	  @@schema("public")
+240	}
+241	
