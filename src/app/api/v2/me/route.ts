@@ -4,6 +4,27 @@ import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
+const eventTypeSelect = {
+  id: true,
+  userId: true,
+  title: true,
+  slug: true,
+  description: true,
+  length: true,
+  location: true,
+  color: true,
+  isActive: true,
+  minNotice: true,
+  bufferBefore: true,
+  bufferAfter: true,
+  maxPerDay: true,
+  price: true,
+  currency: true,
+  meetingUrl: true,
+  createdAt: true,
+  updatedAt: true,
+} as const;
+
 function hasSupabaseAuthConfig() {
   return Boolean(
     process.env.NEXT_PUBLIC_SUPABASE_URL &&
@@ -27,8 +48,9 @@ export async function GET(request: NextRequest) {
       }
 
       const publicEventTypes = await prisma.eventType.findMany({
-        where: { userId: publicUser.id, isActive: true, isPrivate: false },
-        orderBy: { createdAt: "desc" }
+        where: { userId: publicUser.id, isActive: true },
+        orderBy: { createdAt: "desc" },
+        select: eventTypeSelect,
       });
 
       return NextResponse.json({
@@ -72,7 +94,8 @@ export async function GET(request: NextRequest) {
 
     const eventTypes = await prisma.eventType.findMany({
       where: { userId: user.id, isActive: true },
-      orderBy: { createdAt: "desc" }
+      orderBy: { createdAt: "desc" },
+      select: eventTypeSelect,
     });
 
     const schedules = await prisma.schedule.findMany({

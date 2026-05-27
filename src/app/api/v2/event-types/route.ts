@@ -4,6 +4,27 @@ import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
+const eventTypeSelect = {
+  id: true,
+  userId: true,
+  title: true,
+  slug: true,
+  description: true,
+  length: true,
+  location: true,
+  color: true,
+  isActive: true,
+  minNotice: true,
+  bufferBefore: true,
+  bufferAfter: true,
+  maxPerDay: true,
+  price: true,
+  currency: true,
+  meetingUrl: true,
+  createdAt: true,
+  updatedAt: true,
+} as const;
+
 function hasSupabaseAuthConfig() {
   return Boolean(
     process.env.NEXT_PUBLIC_SUPABASE_URL &&
@@ -61,9 +82,9 @@ export async function POST(request: NextRequest) {
         bufferBefore: body.bufferBefore ?? 0,
         bufferAfter: body.bufferAfter ?? 0,
         maxPerDay: body.maxPerDay ?? null,
-        scheduleId: body.scheduleId ? String(body.scheduleId) : null,
         isActive: true,
-      }
+      },
+      select: eventTypeSelect,
     });
 
     return NextResponse.json({ status: "success", data: eventType }, { status: 201 });
@@ -107,7 +128,8 @@ export async function GET(request: NextRequest) {
         userId: targetUserId,
         isActive: true 
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
+      select: eventTypeSelect,
     });
 
     return NextResponse.json({ status: "success", data: eventTypes });
