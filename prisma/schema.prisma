@@ -27,6 +27,8 @@ model User {
   webhooks   Webhook[]
   consents   Law25Consent[]
   outlookAccount OutlookAccount?
+  voiceAgentConfig VoiceAgentConfig?
+  voiceAgentConversations VoiceAgentConversation[]
 
   @@schema("public")
 }
@@ -232,6 +234,8 @@ model VoiceAgentConversation {
   startTime       DateTime @default(now())
   endTime         DateTime?
   metadata        Json?    // Additional context
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([agentId])
