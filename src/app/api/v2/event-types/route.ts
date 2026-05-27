@@ -48,8 +48,56 @@ const eventTypeSelectLegacy = {
   updatedAt: true,
 } as const;
 
+const eventTypeSelectMinimal = {
+  id: true,
+  userId: true,
+  title: true,
+  slug: true,
+  description: true,
+  length: true,
+  isActive: true,
+  createdAt: true,
+  updatedAt: true,
+} as const;
+
 function isMissingColumnError(error: any) {
   return error?.code === "P2022";
+}
+
+function isUniqueConstraintError(error: any) {
+  return error?.code === "P2002";
+}
+
+function parseMissingColumn(error: any) {
+  const columnFromMeta = error?.meta?.column;
+  if (typeof columnFromMeta === "string" && columnFromMeta.length > 0) {
+    const raw = columnFromMeta.split(".").pop() || columnFromMeta;
+    return raw.replace(/[^a-zA-Z0-9_]/g, "");
+  }
+
+  const message = String(error?.message || "");
+  const match = message.match(/column [`"]?([a-zA-Z0-9_]+)[`"]?/i);
+  return match?.[1] || null;
+}
+
+function withEventTypeDefaults(eventType: any) {
+  if (!eventType) return eventType;
+  return {
+    ...eventType,
+    location: eventType.location ?? "google-meet",
+    color: eventType.color ?? "#242424",
+    minNotice: eventType.minNotice ?? 60,
+    bufferBefore: eventType.bufferBefore ?? 0,
+    bufferAfter: eventType.bufferAfter ?? 0,
+    maxPerDay: eventType.maxPerDay ?? null,
+    price: eventType.price ?? 0,
+    currency: eventType.currency ?? "cad",
+    meetingUrl: eventType.meetingUrl ?? null,
+    schedulingType: eventType.schedulingType ?? "individual",
+    teamMembers:
+      eventType.teamMembers ??
+      (eventType.userId ? [eventType.userId] : null),
+  };
 }
 
 function hasSupabaseAuthConfig() {
@@ -83,70 +131,112 @@ export async function POST(request: NextRequest) {
     const name = user.user_metadata?.full_name || user.user_metadata?.name || email.split("@")[0] || "User";
     const username = `${email.split("@")[0]}-${user.id.slice(0,4)}`;
 
-    await prisma.user.upsert({
-      where: { id: user.id },
-      update: {},
-      create: {
-        id: user.id,
-        email: email,
-        name: name,
-        username: username,
-      },
-      select: { id: true },
-    });
+    try {
+      await prisma.user.upsert({
+        where: { id: user.id },
+        update: {},
+        create: {
+          id: user.id,
+          email: email,
+          name: name,
+          username: username,
+        },
+        select: { id: true },
+      });
+    } catch (error: any) {
+      if (!isUniqueConstraintError(error)) throw error;
+
+      // Legacy data can contain conflicting unique username/email rows for recreated auth users.
+      const fallbackEmail = `${user.id}@planxo.local`;
+      await prisma.user.upsert({
+        where: { id: user.id },
+        update: {
+          name,
+        },
+        create: {
+          id: user.id,
+          email: fallbackEmail,
+          name,
+          username: `user-${user.id.slice(0, 8)}`,
+        },
+        select: { id: true },
+      });
+    }
+
+    const baseData: Record<string, any> = {
+      userId: user.id,
+      title: body.title || "Nouveau rendez-vous",
+      slug: body.slug || `rdv-${Date.now()}`,
+      description: body.description || "",
+      length: body.length || 30,
+      location: body.location || "google-meet",
+      color: body.color || "#242424",
+      price: body.price || 0,
+      currency: body.currency || "cad",
+      bufferBefore: body.bufferBefore ?? 0,
+      bufferAfter: body.bufferAfter ?? 0,
+      maxPerDay: body.maxPerDay ?? null,
+      schedulingType: body.schedulingType ?? "individual",
+      teamMembers: Array.isArray(body.teamMembers) ? body.teamMembers : null,
+      isActive: true,
+    };
 
     let eventType: any = null;
+    let createData = { ...baseData };
     try {
       eventType = await prisma.eventType.create({
-        data: {
-          userId: user.id,
-          title: body.title || "Nouveau rendez-vous",
-          slug: body.slug || `rdv-${Date.now()}`,
-          description: body.description || "",
-          length: body.length || 30,
-          location: body.location || "google-meet",
-          color: body.color || "#242424",
-          price: body.price || 0,
-          currency: body.currency || "cad",
-          bufferBefore: body.bufferBefore ?? 0,
-          bufferAfter: body.bufferAfter ?? 0,
-          maxPerDay: body.maxPerDay ?? null,
-          schedulingType: body.schedulingType ?? "individual",
-          teamMembers: Array.isArray(body.teamMembers) ? body.teamMembers : null,
-          isActive: true,
-        },
+        data: createData,
         select: eventTypeSelect,
       });
     } catch (error: any) {
-      if (!isMissingColumnError(error)) throw error;
+      if (isUniqueConstraintError(error)) {
+        createData.slug = `${createData.slug}-${Date.now().toString().slice(-4)}`;
+      } else if (isMissingColumnError(error)) {
+        const missingColumn = parseMissingColumn(error);
+        if (missingColumn && missingColumn in createData) {
+          delete createData[missingColumn];
+        } else {
+          delete createData.schedulingType;
+          delete createData.teamMembers;
+        }
+      } else {
+        throw error;
+      }
 
-      eventType = await prisma.eventType.create({
-        data: {
-          userId: user.id,
-          title: body.title || "Nouveau rendez-vous",
-          slug: body.slug || `rdv-${Date.now()}`,
-          description: body.description || "",
-          length: body.length || 30,
-          location: body.location || "google-meet",
-          color: body.color || "#242424",
-          price: body.price || 0,
-          currency: body.currency || "cad",
-          bufferBefore: body.bufferBefore ?? 0,
-          bufferAfter: body.bufferAfter ?? 0,
-          maxPerDay: body.maxPerDay ?? null,
-          isActive: true,
-        },
-        select: eventTypeSelectLegacy,
+      const created = await prisma.eventType.create({
+        data: createData,
+        select: { id: true },
       });
 
-      eventType = {
-        ...eventType,
-        schedulingType: "individual",
-        teamMembers: [eventType.userId],
-      };
+      const where = { id: created.id };
+      try {
+        eventType = await prisma.eventType.findUnique({
+          where,
+          select: eventTypeSelect,
+        });
+      } catch (selectError: any) {
+        if (!isMissingColumnError(selectError)) throw selectError;
+
+        try {
+          eventType = await prisma.eventType.findUnique({
+            where,
+            select: eventTypeSelectLegacy,
+          });
+        } catch (legacySelectError: any) {
+          if (!isMissingColumnError(legacySelectError)) throw legacySelectError;
+
+          eventType = await prisma.eventType.findUnique({
+            where,
+            select: eventTypeSelectMinimal,
+          });
+        }
+      }
     }
 
-    return NextResponse.json({ status: "success", data: eventType }, { status: 201 });
+    return NextResponse.json(
+      { status: "success", data: withEventTypeDefaults(eventType) },
+      { status: 201 }
+    );
   } catch (error: any) {
     console.error("Error creating event type:", error);
     return NextResponse.json({ 
