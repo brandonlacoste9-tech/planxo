@@ -23,7 +23,7 @@ export default function DashboardVoiceAgentPage() {
         
         if (configRes.ok) {
           const configData = await configRes.json();
-          setAgentConfig(configData);
+          setAgentConfig(configData.agentConfig ?? null);
         }
       } catch (e) {
         console.error('Failed to load dashboard data', e);
