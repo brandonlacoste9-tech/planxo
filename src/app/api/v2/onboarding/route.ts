@@ -41,7 +41,8 @@ export async function PUT(request: NextRequest) {
         name: finalName,
         username: finalUsername,
         timeZone: finalTimeZone,
-      }
+      },
+      select: { id: true },
     });
 
     // 2. Check and Create Default Schedule

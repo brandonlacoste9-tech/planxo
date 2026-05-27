@@ -32,7 +32,8 @@ export async function PUT(request: NextRequest) {
         name: name,
         username: username,
         timeZone: timezone || "America/Toronto"
-      }
+      },
+      select: { id: true },
     });
 
     // 2. Get or create default schedule
