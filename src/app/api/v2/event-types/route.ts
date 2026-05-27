@@ -27,6 +27,31 @@ const eventTypeSelect = {
   updatedAt: true,
 } as const;
 
+const eventTypeSelectLegacy = {
+  id: true,
+  userId: true,
+  title: true,
+  slug: true,
+  description: true,
+  length: true,
+  location: true,
+  color: true,
+  isActive: true,
+  minNotice: true,
+  bufferBefore: true,
+  bufferAfter: true,
+  maxPerDay: true,
+  price: true,
+  currency: true,
+  meetingUrl: true,
+  createdAt: true,
+  updatedAt: true,
+} as const;
+
+function isMissingColumnError(error: any) {
+  return error?.code === "P2022";
+}
+
 function hasSupabaseAuthConfig() {
   return Boolean(
     process.env.NEXT_PUBLIC_SUPABASE_URL &&
@@ -70,26 +95,56 @@ export async function POST(request: NextRequest) {
       select: { id: true },
     });
 
-    const eventType = await prisma.eventType.create({
-      data: {
-        userId: user.id,
-        title: body.title || "Nouveau rendez-vous",
-        slug: body.slug || `rdv-${Date.now()}`,
-        description: body.description || "",
-        length: body.length || 30,
-        location: body.location || "google-meet",
-        color: body.color || "#242424",
-        price: body.price || 0,
-        currency: body.currency || "cad",
-        bufferBefore: body.bufferBefore ?? 0,
-        bufferAfter: body.bufferAfter ?? 0,
-        maxPerDay: body.maxPerDay ?? null,
-        schedulingType: body.schedulingType ?? "individual",
-        teamMembers: Array.isArray(body.teamMembers) ? body.teamMembers : null,
-        isActive: true,
-      },
-      select: eventTypeSelect,
-    });
+    let eventType: any = null;
+    try {
+      eventType = await prisma.eventType.create({
+        data: {
+          userId: user.id,
+          title: body.title || "Nouveau rendez-vous",
+          slug: body.slug || `rdv-${Date.now()}`,
+          description: body.description || "",
+          length: body.length || 30,
+          location: body.location || "google-meet",
+          color: body.color || "#242424",
+          price: body.price || 0,
+          currency: body.currency || "cad",
+          bufferBefore: body.bufferBefore ?? 0,
+          bufferAfter: body.bufferAfter ?? 0,
+          maxPerDay: body.maxPerDay ?? null,
+          schedulingType: body.schedulingType ?? "individual",
+          teamMembers: Array.isArray(body.teamMembers) ? body.teamMembers : null,
+          isActive: true,
+        },
+        select: eventTypeSelect,
+      });
+    } catch (error: any) {
+      if (!isMissingColumnError(error)) throw error;
+
+      eventType = await prisma.eventType.create({
+        data: {
+          userId: user.id,
+          title: body.title || "Nouveau rendez-vous",
+          slug: body.slug || `rdv-${Date.now()}`,
+          description: body.description || "",
+          length: body.length || 30,
+          location: body.location || "google-meet",
+          color: body.color || "#242424",
+          price: body.price || 0,
+          currency: body.currency || "cad",
+          bufferBefore: body.bufferBefore ?? 0,
+          bufferAfter: body.bufferAfter ?? 0,
+          maxPerDay: body.maxPerDay ?? null,
+          isActive: true,
+        },
+        select: eventTypeSelectLegacy,
+      });
+
+      eventType = {
+        ...eventType,
+        schedulingType: "individual",
+        teamMembers: [eventType.userId],
+      };
+    }
 
     return NextResponse.json({ status: "success", data: eventType }, { status: 201 });
   } catch (error: any) {
@@ -127,14 +182,34 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const eventTypes = await prisma.eventType.findMany({
-      where: { 
-        userId: targetUserId,
-        isActive: true 
-      },
-      orderBy: { createdAt: 'desc' },
-      select: eventTypeSelect,
-    });
+    let eventTypes: any[] = [];
+    try {
+      eventTypes = await prisma.eventType.findMany({
+        where: {
+          userId: targetUserId,
+          isActive: true,
+        },
+        orderBy: { createdAt: "desc" },
+        select: eventTypeSelect,
+      });
+    } catch (error: any) {
+      if (!isMissingColumnError(error)) throw error;
+
+      const legacyEventTypes = await prisma.eventType.findMany({
+        where: {
+          userId: targetUserId,
+          isActive: true,
+        },
+        orderBy: { createdAt: "desc" },
+        select: eventTypeSelectLegacy,
+      });
+
+      eventTypes = legacyEventTypes.map((et) => ({
+        ...et,
+        schedulingType: "individual",
+        teamMembers: [et.userId],
+      }));
+    }
 
     return NextResponse.json({ status: "success", data: eventTypes });
   } catch (error: any) {

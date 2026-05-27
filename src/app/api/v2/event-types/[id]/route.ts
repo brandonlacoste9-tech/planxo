@@ -27,6 +27,31 @@ const eventTypeSelect = {
   updatedAt: true,
 } as const;
 
+const eventTypeSelectLegacy = {
+  id: true,
+  userId: true,
+  title: true,
+  slug: true,
+  description: true,
+  length: true,
+  location: true,
+  color: true,
+  isActive: true,
+  minNotice: true,
+  bufferBefore: true,
+  bufferAfter: true,
+  maxPerDay: true,
+  price: true,
+  currency: true,
+  meetingUrl: true,
+  createdAt: true,
+  updatedAt: true,
+} as const;
+
+function isMissingColumnError(error: any) {
+  return error?.code === "P2022";
+}
+
 function hasSupabaseAuthConfig() {
   return Boolean(
     process.env.NEXT_PUBLIC_SUPABASE_URL &&
@@ -55,10 +80,28 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const eventType = await prisma.eventType.findUnique({
-      where: { id: id },
-      select: eventTypeSelect,
-    });
+    let eventType: any = null;
+    try {
+      eventType = await prisma.eventType.findUnique({
+        where: { id: id },
+        select: eventTypeSelect,
+      });
+    } catch (error: any) {
+      if (!isMissingColumnError(error)) throw error;
+
+      eventType = await prisma.eventType.findUnique({
+        where: { id: id },
+        select: eventTypeSelectLegacy,
+      });
+
+      if (eventType) {
+        eventType = {
+          ...eventType,
+          schedulingType: "individual",
+          teamMembers: [eventType.userId],
+        };
+      }
+    }
 
     if (!eventType || eventType.userId !== user.id || !eventType.isActive) {
       return NextResponse.json({ error: "Event type not found" }, { status: 404 });
@@ -109,11 +152,32 @@ export async function PATCH(
       }
     }
 
-    const eventType = await prisma.eventType.update({
-      where: { id },
-      data: updates,
-      select: eventTypeSelect,
-    });
+    let eventType: any = null;
+    try {
+      eventType = await prisma.eventType.update({
+        where: { id },
+        data: updates,
+        select: eventTypeSelect,
+      });
+    } catch (error: any) {
+      if (!isMissingColumnError(error)) throw error;
+
+      const legacyUpdates = { ...updates };
+      delete legacyUpdates.schedulingType;
+      delete legacyUpdates.teamMembers;
+
+      eventType = await prisma.eventType.update({
+        where: { id },
+        data: legacyUpdates,
+        select: eventTypeSelectLegacy,
+      });
+
+      eventType = {
+        ...eventType,
+        schedulingType: "individual",
+        teamMembers: [eventType.userId],
+      };
+    }
 
     return NextResponse.json({ status: "success", data: eventType });
   } catch (error: any) {
