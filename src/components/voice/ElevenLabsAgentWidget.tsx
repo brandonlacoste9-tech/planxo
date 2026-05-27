@@ -40,32 +40,46 @@ export function ElevenLabsAgentWidget({
 
         script.onload = () => {
           // Wait for window.ElevenLabsConvAI to be available
+          let attempts = 0;
           const checkWidget = setInterval(() => {
+            attempts++;
             if (window.ElevenLabsConvAI) {
               clearInterval(checkWidget);
               
-              // Initialize widget with agent ID
-              window.ElevenLabsConvAI.setAgentId(agentId);
+              try {
+                // Initialize widget with agent ID
+                if (typeof window.ElevenLabsConvAI.setAgentId === 'function') {
+                  window.ElevenLabsConvAI.setAgentId(agentId);
+                }
 
-              // Set up event listeners
-              if (window.ElevenLabsConvAI.on) {
-                window.ElevenLabsConvAI.on('conversation_start', () => {
-                  console.log('[ElevenLabs Widget] Conversation started');
-                  onConversationStart?.();
-                });
+                // Set up event listeners
+                if (typeof window.ElevenLabsConvAI.on === 'function') {
+                  window.ElevenLabsConvAI.on('conversation_start', () => {
+                    console.log('[ElevenLabs Widget] Conversation started');
+                    onConversationStart?.();
+                  });
 
-                window.ElevenLabsConvAI.on('conversation_end', (data: any) => {
-                  console.log('[ElevenLabs Widget] Conversation ended', data);
-                  onConversationEnd?.(data);
-                });
+                  window.ElevenLabsConvAI.on('conversation_end', (data: any) => {
+                    console.log('[ElevenLabs Widget] Conversation ended', data);
+                    onConversationEnd?.(data);
+                  });
 
-                window.ElevenLabsConvAI.on('error', (error: any) => {
-                  console.error('[ElevenLabs Widget] Error:', error);
-                  setError('An error occurred during the conversation');
-                });
+                  window.ElevenLabsConvAI.on('error', (error: any) => {
+                    console.error('[ElevenLabs Widget] Error:', error);
+                    setError('An error occurred during the conversation');
+                  });
+                }
+
+                setIsInitialized(true);
+                setIsLoading(false);
+              } catch (initErr) {
+                console.error('[ElevenLabs Widget] Initialization error:', initErr);
+                setError('Failed to initialize voice agent');
+                setIsLoading(false);
               }
-
-              setIsInitialized(true);
+            } else if (attempts > 50) { // Stop after 5 seconds
+              clearInterval(checkWidget);
+              setError('Failed to load voice agent components');
               setIsLoading(false);
             }
           }, 100);
