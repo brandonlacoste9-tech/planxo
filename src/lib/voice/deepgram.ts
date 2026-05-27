@@ -28,8 +28,10 @@ export class DeepgramSTT {
         smart_format: 'true',
         diarize: 'false',
         punctuate: 'true',
-        utterance_end_ms: '1000',
+        utterance_end_ms: '800', // Faster response
         vad_events: 'true',
+        endpointing: '300', // Improved endpointing
+        filler_words: 'true', // Better handling of 'um', 'ah'
       });
 
       this.ws = new WebSocket(

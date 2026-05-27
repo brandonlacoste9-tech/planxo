@@ -114,7 +114,7 @@ export function VoiceSchedulingAgent({
       const rec = new SpeechRecognition();
       rec.continuous = true;
       rec.interimResults = true;
-      rec.maxAlternatives = 1;
+      rec.maxAlternatives = 3; // Allow more alternatives for better matching
       rec.lang = selectedLang;
 
       rec.onresult = (event: any) => {
@@ -131,7 +131,7 @@ export function VoiceSchedulingAgent({
           if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
           silenceTimerRef.current = setTimeout(() => {
             if (isListeningRef.current) stopListening();
-          }, 2600);
+          }, 3500); // Increased silence timeout to prevent cutting off user
 
           if (final.trim()) {
             setInterimTranscript('');
