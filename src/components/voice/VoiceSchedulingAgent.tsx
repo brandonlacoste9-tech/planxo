@@ -253,21 +253,26 @@ export function VoiceSchedulingAgent({
     const route = mode === 'dashboard' ? '/api/v2/elevenlabs/voices' : '/api/demo/elevenlabs/voices';
     try {
       const res = await fetch(route);
-      if (res.ok) {
-        const data = await res.json();
-        if (data.voices?.length) {
-          setVoices(data.voices);
-          if (!selectedVoice) {
-            setSelectedVoice(data.voices[0].id);
-          }
-        }
+      const data = await res.json();
+      if (!res.ok) {
+        console.error('[VoiceAgent] Voices API error:', res.status, data?.error);
+        setSpeechError(`Could not load voices (${res.status}: ${data?.error || 'unknown'}). Check ELEVENLABS_API_KEY in Vercel env vars.`);
+        return;
+      }
+      if (data.voices?.length) {
+        setVoices(data.voices);
+        setSelectedVoice(data.voices[0].id);
+      } else {
+        console.warn('[VoiceAgent] Voices API returned empty list', data);
+        setSpeechError('No voices returned from ElevenLabs. Check your API key and account.');
       }
     } catch (e) {
-      console.error('Failed to load voices', e);
+      console.error('[VoiceAgent] Failed to load voices:', e);
+      setSpeechError('Network error loading voices. Check your connection.');
     } finally {
       setIsLoadingVoices(false);
     }
-  }, [mode, selectedVoice]);
+  }, [mode]);
 
   // Initial setup
   useEffect(() => {
