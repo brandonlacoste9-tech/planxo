@@ -1,7 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient, createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
+
+function isValidElevenLabsAuth(request: NextRequest) {
+  const apiKey = process.env.ELEVENLABS_API_KEY;
+  if (!apiKey) return false;
+
+  const auth = request.headers.get("authorization") || "";
+  const match = auth.match(/^Bearer\s+(.+)$/i);
+  return !!match && match[1] === apiKey;
+}
 
 /**
  * ElevenLabs Tool: Create Booking
@@ -61,14 +70,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
+    const isElevenLabs = isValidElevenLabsAuth(request);
+    if (isElevenLabs && !username) {
       return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
+        { error: "username is required for ElevenLabs tool calls" },
+        { status: 400 }
       );
+    }
+
+    const supabase = isElevenLabs ? await createAdminClient() : await createClient();
+    const userId =
+      username ||
+      (isElevenLabs
+        ? undefined
+        : (await supabase.auth.getUser()).data.user?.id);
+
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // Get protocol and host for internal API calls
@@ -81,7 +99,7 @@ export async function POST(request: NextRequest) {
       name,
       email,
       start: start_time,
-      username: username || user.id,
+      username: userId,
       eventTypeSlug: eventTypeSlug || "appel-de-decouverte",
       notes: notes || `Voice booking via ElevenLabs agent. Duration: ${duration}min`
     };
@@ -119,7 +137,7 @@ export async function POST(request: NextRequest) {
     // Log the booking in voice_calls table for record-keeping
     try {
       await supabase.from("voice_calls").insert({
-        userId: user.id,
+        userId,
         callSid: `elevenlabs-booking-${Date.now()}`,
         direction: "inbound",
         status: "completed",

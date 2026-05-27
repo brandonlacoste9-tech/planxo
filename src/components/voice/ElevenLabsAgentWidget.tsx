@@ -1,7 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
-import { useAuth } from '@/lib/auth/useAuth';
+import React, { useEffect, useState } from 'react';
 
 interface ElevenLabsAgentWidgetProps {
   agentId: string;
@@ -27,7 +26,6 @@ export function ElevenLabsAgentWidget({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
-  const { user } = useAuth();
 
   // Load and initialize ElevenLabs widget
   useEffect(() => {
