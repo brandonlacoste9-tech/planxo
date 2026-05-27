@@ -4,6 +4,34 @@ import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
+const eventTypeSelect = {
+  id: true,
+  userId: true,
+  title: true,
+  slug: true,
+  description: true,
+  length: true,
+  location: true,
+  color: true,
+  isActive: true,
+  minNotice: true,
+  bufferBefore: true,
+  bufferAfter: true,
+  maxPerDay: true,
+  price: true,
+  currency: true,
+  meetingUrl: true,
+  createdAt: true,
+  updatedAt: true,
+} as const;
+
+function hasSupabaseAuthConfig() {
+  return Boolean(
+    process.env.NEXT_PUBLIC_SUPABASE_URL &&
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  );
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -20,8 +48,9 @@ export async function GET(request: NextRequest) {
       }
 
       const publicEventTypes = await prisma.eventType.findMany({
-        where: { userId: publicUser.id, isActive: true, isPrivate: false },
-        orderBy: { createdAt: "desc" }
+        where: { userId: publicUser.id, isActive: true },
+        orderBy: { createdAt: "desc" },
+        select: eventTypeSelect,
       });
 
       return NextResponse.json({
@@ -35,6 +64,13 @@ export async function GET(request: NextRequest) {
     }
 
     // Otherwise, fetch authenticated user's full profile
+    if (!hasSupabaseAuthConfig()) {
+      return NextResponse.json(
+        { error: "Server misconfigured: missing Supabase environment variables" },
+        { status: 503 }
+      );
+    }
+
     const supabase = await createClient();
     const { data: { user: authUser } } = await supabase.auth.getUser();
 
@@ -43,7 +79,17 @@ export async function GET(request: NextRequest) {
     }
 
     const user = await prisma.user.findUnique({
-      where: { id: authUser.id }
+      where: { id: authUser.id },
+      select: {
+        id: true,
+        email: true,
+        username: true,
+        name: true,
+        avatarUrl: true,
+        timeZone: true,
+        createdAt: true,
+        updatedAt: true,
+      },
     });
 
     if (!user) {
@@ -58,7 +104,8 @@ export async function GET(request: NextRequest) {
 
     const eventTypes = await prisma.eventType.findMany({
       where: { userId: user.id, isActive: true },
-      orderBy: { createdAt: "desc" }
+      orderBy: { createdAt: "desc" },
+      select: eventTypeSelect,
     });
 
     const schedules = await prisma.schedule.findMany({
@@ -80,6 +127,13 @@ export async function GET(request: NextRequest) {
 
 export async function PATCH(req: Request) {
   try {
+    if (!hasSupabaseAuthConfig()) {
+      return Response.json(
+        { error: "Server misconfigured: missing Supabase environment variables" },
+        { status: 503 }
+      );
+    }
+
     const supabaseAuth = await createClient();
     const { data: { user: authUser } } = await supabaseAuth.auth.getUser();
     if (!authUser) return Response.json({ error: 'Unauthorized' }, { status: 401 });

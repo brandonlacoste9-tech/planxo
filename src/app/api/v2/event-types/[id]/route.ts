@@ -4,12 +4,47 @@ import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
+const eventTypeSelect = {
+  id: true,
+  userId: true,
+  title: true,
+  slug: true,
+  description: true,
+  length: true,
+  location: true,
+  color: true,
+  isActive: true,
+  minNotice: true,
+  bufferBefore: true,
+  bufferAfter: true,
+  maxPerDay: true,
+  price: true,
+  currency: true,
+  meetingUrl: true,
+  createdAt: true,
+  updatedAt: true,
+} as const;
+
+function hasSupabaseAuthConfig() {
+  return Boolean(
+    process.env.NEXT_PUBLIC_SUPABASE_URL &&
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  );
+}
+
 // GET — Fetch a single event type by id
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    if (!hasSupabaseAuthConfig()) {
+      return NextResponse.json(
+        { error: "Server misconfigured: missing Supabase environment variables" },
+        { status: 503 }
+      );
+    }
+
     const { id } = await params;
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -19,7 +54,8 @@ export async function GET(
     }
 
     const eventType = await prisma.eventType.findUnique({
-      where: { id: id }
+      where: { id: id },
+      select: eventTypeSelect,
     });
 
     if (!eventType || eventType.userId !== user.id || !eventType.isActive) {
@@ -39,6 +75,13 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    if (!hasSupabaseAuthConfig()) {
+      return NextResponse.json(
+        { error: "Server misconfigured: missing Supabase environment variables" },
+        { status: 503 }
+      );
+    }
+
     const { id } = await params;
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -50,13 +93,13 @@ export async function PATCH(
     const body = await request.json();
 
     // Verify ownership
-    const existing = await prisma.eventType.findUnique({ where: { id } });
+    const existing = await prisma.eventType.findUnique({ where: { id }, select: { id: true, userId: true } });
     if (!existing || existing.userId !== user.id) {
       return NextResponse.json({ error: "Event type not found" }, { status: 404 });
     }
 
     const updates: any = {};
-    const allowedFields = ["title", "slug", "description", "length", "location", "color", "price", "currency", "bufferBefore", "bufferAfter", "maxPerDay", "isActive", "scheduleId"];
+    const allowedFields = ["title", "slug", "description", "length", "location", "color", "price", "currency", "bufferBefore", "bufferAfter", "maxPerDay", "isActive"];
     
     for (const field of allowedFields) {
       if (body[field] !== undefined) {
@@ -66,7 +109,8 @@ export async function PATCH(
 
     const eventType = await prisma.eventType.update({
       where: { id },
-      data: updates
+      data: updates,
+      select: eventTypeSelect,
     });
 
     return NextResponse.json({ status: "success", data: eventType });
@@ -82,6 +126,13 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    if (!hasSupabaseAuthConfig()) {
+      return NextResponse.json(
+        { error: "Server misconfigured: missing Supabase environment variables" },
+        { status: 503 }
+      );
+    }
+
     const { id } = await params;
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -91,7 +142,7 @@ export async function DELETE(
     }
 
     // Verify ownership
-    const existing = await prisma.eventType.findUnique({ where: { id } });
+    const existing = await prisma.eventType.findUnique({ where: { id }, select: { id: true, userId: true } });
     if (!existing || existing.userId !== user.id) {
       return NextResponse.json({ error: "Event type not found" }, { status: 404 });
     }

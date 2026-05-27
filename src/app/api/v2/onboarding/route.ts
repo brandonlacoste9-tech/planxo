@@ -115,9 +115,7 @@ export async function PUT(request: NextRequest) {
         data: starterTypes.map((et) => ({
           ...et,
           userId: user.id,
-          scheduleId: schedId,
           isActive: true,
-          isPrivate: false,
           currency: "cad",
           minNotice: 60,
           bufferBefore: 0,

@@ -40,6 +40,11 @@ export async function POST(request: Request) {
     // 2. Fetch baseline event configurations
     const eventType = await prisma.eventType.findUnique({
       where: { id: eventTypeId },
+      select: {
+        id: true,
+        userId: true,
+        price: true,
+      },
     });
 
     if (!eventType) {
