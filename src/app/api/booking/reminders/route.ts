@@ -182,17 +182,21 @@ async function releaseReminderClaim(bookingId: string, reminderType: '24h' | 'sm
 // Email reminder cron job - runs every hour
 export async function POST(request: NextRequest) {
   try {
-    validateCoreEnv();
-    const appUrl = getEnvVar('NEXT_PUBLIC_APP_URL', 'booking-reminders');
-    const internalApiKey = getEnvVar('INTERNAL_API_KEY', 'booking-reminders');
-    const cronSecret = getEnvVar('CRON_SECRET', 'booking-reminders');
-
-    // Verify cron secret
+    // Verify cron secret before validating all env to avoid unauthenticated 500s.
     const authHeader = request.headers.get('authorization');
+    const cronSecret = process.env.CRON_SECRET;
+
+    if (!cronSecret) {
+      return NextResponse.json({ error: 'Server misconfigured' }, { status: 500 });
+    }
 
     if (authHeader !== `Bearer ${cronSecret}`) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    validateCoreEnv();
+    const appUrl = getEnvVar('NEXT_PUBLIC_APP_URL', 'booking-reminders');
+    const internalApiKey = getEnvVar('INTERNAL_API_KEY', 'booking-reminders');
 
     const results = {
       emailsSent: 0,
@@ -409,17 +413,26 @@ export async function POST(request: NextRequest) {
 
 // GET endpoint for manual triggering
 export async function GET(request: NextRequest) {
-  validateCoreEnv();
-
   const url = new URL(request.url);
   const secret = url.searchParams.get('secret');
-  const cronSecret = getEnvVar('CRON_SECRET', 'booking-reminders');
+  const cronSecret = process.env.CRON_SECRET;
+
+  if (!cronSecret) {
+    return NextResponse.json({ error: 'Server misconfigured' }, { status: 500 });
+  }
   
   if (secret !== cronSecret) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  return POST(request);
+  const proxiedRequest = new NextRequest(request.url, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${cronSecret}`,
+    },
+  });
+
+  return POST(proxiedRequest);
 }
 
 function formatDate(dateStr: string): string {
