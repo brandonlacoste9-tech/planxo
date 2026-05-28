@@ -197,7 +197,12 @@ export async function POST(request: NextRequest) {
     const results = {
       emailsSent: 0,
       smsSent: 0,
+      emailSkipped: 0,
+      smsSkipped: 0,
       errors: 0,
+      bookingsScanned: 0,
+      emailWindowCandidates: 0,
+      smsWindowCandidates: 0,
       details: [] as any[]
     };
 
@@ -225,10 +230,14 @@ export async function POST(request: NextRequest) {
 
     for (const booking of bookings || []) {
       try {
+        results.bookingsScanned++;
         const bookingStart = new Date(booking.startTime);
         const msUntilBooking = bookingStart.getTime() - now.getTime();
         const emailWindow = msUntilBooking >= 23 * 3600000 && msUntilBooking <= 25 * 3600000;
         const smsWindow = msUntilBooking >= 1 * 3600000 && msUntilBooking <= 3 * 3600000;
+
+        if (emailWindow) results.emailWindowCandidates++;
+        if (smsWindow) results.smsWindowCandidates++;
 
         let eventType = eventTypeCache.get(String(booking.eventTypeId));
         if (!eventType) {
@@ -318,13 +327,22 @@ export async function POST(request: NextRequest) {
               await releaseReminderClaim(bookingId, '24h', claim.claimTimestamp);
               throw sendError;
             }
+          } else {
+            results.emailSkipped++;
+            results.details.push({ bookingId: booking.id, channel: 'email24h', status: 'skipped', reason: 'already_sent_or_claimed' });
           }
+        } else if (emailWindow) {
+          results.emailSkipped++;
+          const reason = !emailPrefs.enabled ? 'email_disabled' : 'missing_email';
+          results.details.push({ bookingId: booking.id, channel: 'email24h', status: 'skipped', reason });
         }
 
         if (smsWindow && smsPrefs.enabled) {
           if (!hasTwilioSmsConfig()) {
+            results.smsSkipped++;
             results.details.push({ bookingId: booking.id, channel: 'sms2h', status: 'skipped', reason: 'twilio_not_configured' });
           } else if (!attendeePhone) {
+            results.smsSkipped++;
             results.details.push({ bookingId: booking.id, channel: 'sms2h', status: 'skipped', reason: 'missing_phone' });
           } else {
             const bookingId = String(booking.id);
@@ -346,8 +364,14 @@ export async function POST(request: NextRequest) {
                 await releaseReminderClaim(bookingId, 'sms2h', claim.claimTimestamp);
                 throw sendError;
               }
+            } else {
+              results.smsSkipped++;
+              results.details.push({ bookingId: booking.id, channel: 'sms2h', status: 'skipped', reason: 'already_sent_or_claimed' });
             }
           }
+        } else if (smsWindow) {
+          results.smsSkipped++;
+          results.details.push({ bookingId: booking.id, channel: 'sms2h', status: 'skipped', reason: 'sms_disabled' });
         }
 
       } catch (err) {
@@ -364,7 +388,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       timestamp: new Date().toISOString(),
-      results
+      results,
+      summary: {
+        bookingsScanned: results.bookingsScanned,
+        emailWindowCandidates: results.emailWindowCandidates,
+        smsWindowCandidates: results.smsWindowCandidates,
+        emailsSent: results.emailsSent,
+        emailSkipped: results.emailSkipped,
+        smsSent: results.smsSent,
+        smsSkipped: results.smsSkipped,
+        errors: results.errors,
+      }
     });
 
   } catch (error) {
