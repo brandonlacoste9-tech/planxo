@@ -52,6 +52,12 @@ type MeResponse = {
   eventTypes?: Array<{ slug?: string | null; isActive?: boolean | null }>;
 };
 
+type ProfileDefaults = {
+  username: string;
+  eventTypeSlug: string;
+  timeZone: string;
+};
+
 function toDateInputValue(date: Date) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -113,26 +119,103 @@ export function TextSchedulingAssistant({
     setMessages((prev) => [...prev, { id: createId(), role, text }]);
   };
 
-  const getProfileDefaults = async () => {
-    try {
-      const res = await fetch('/api/v2/me', { cache: 'no-store' });
-      if (!res.ok) return null;
-
-      const data = (await res.json()) as MeResponse;
-      const suggestedSlug =
-        data.eventTypes?.find((eventType) => eventType?.isActive !== false && typeof eventType?.slug === 'string' && eventType.slug.length > 0)
-          ?.slug ||
-        data.eventTypes?.find((eventType) => typeof eventType?.slug === 'string' && eventType.slug.length > 0)?.slug ||
-        '';
-
-      return {
-        username: data.username || '',
-        eventTypeSlug: suggestedSlug,
-        timeZone: data.timeZone || '',
-      };
-    } catch {
-      return null;
+  const getProfileDefaults = async (usernameHint?: string): Promise<ProfileDefaults | null> => {
+    const endpoints = ['/api/v2/me'];
+    if (usernameHint) {
+      endpoints.push(`/api/v2/me?username=${encodeURIComponent(usernameHint)}`);
     }
+
+    for (const endpoint of endpoints) {
+      try {
+        const res = await fetch(endpoint, { cache: 'no-store' });
+        if (!res.ok) continue;
+
+        const data = (await res.json()) as MeResponse;
+        const suggestedSlug =
+          data.eventTypes?.find((eventType) => eventType?.isActive !== false && typeof eventType?.slug === 'string' && eventType.slug.length > 0)
+            ?.slug ||
+          data.eventTypes?.find((eventType) => typeof eventType?.slug === 'string' && eventType.slug.length > 0)?.slug ||
+          '';
+
+        const resolvedUsername = data.username || usernameHint || '';
+        if (!resolvedUsername && !suggestedSlug && !data.timeZone) {
+          continue;
+        }
+
+        return {
+          username: resolvedUsername,
+          eventTypeSlug: suggestedSlug,
+          timeZone: data.timeZone || '',
+        };
+      } catch {
+        // Try next endpoint candidate.
+      }
+    }
+
+    return null;
+  };
+
+  const pickSlotsForDate = (slotMap: Record<string, string[]> | undefined, selectedDateKey: string) => {
+    if (!slotMap) {
+      return { slots: [] as string[], matchedDateKey: selectedDateKey };
+    }
+
+    const direct = slotMap[selectedDateKey] || [];
+    if (direct.length) {
+      return { slots: direct, matchedDateKey: selectedDateKey };
+    }
+
+    const entries = Object.entries(slotMap).filter(([, slots]) => Array.isArray(slots) && slots.length > 0);
+    if (!entries.length) {
+      return { slots: [] as string[], matchedDateKey: selectedDateKey };
+    }
+
+    if (entries.length === 1) {
+      return { slots: entries[0][1], matchedDateKey: entries[0][0] };
+    }
+
+    const selectedMs = Date.parse(`${selectedDateKey}T00:00:00Z`);
+    if (Number.isNaN(selectedMs)) {
+      return { slots: entries[0][1], matchedDateKey: entries[0][0] };
+    }
+
+    let nearestDateKey = selectedDateKey;
+    let nearestSlots: string[] = [];
+    let nearestDiff = Number.POSITIVE_INFINITY;
+
+    for (const [key, slots] of entries) {
+      const keyMs = Date.parse(`${key}T00:00:00Z`);
+      if (Number.isNaN(keyMs)) continue;
+      const diff = Math.abs(keyMs - selectedMs);
+      if (diff < nearestDiff) {
+        nearestDiff = diff;
+        nearestDateKey = key;
+        nearestSlots = slots;
+      }
+    }
+
+    if (nearestSlots.length && nearestDiff <= 36 * 60 * 60 * 1000) {
+      return { slots: nearestSlots, matchedDateKey: nearestDateKey };
+    }
+
+    return { slots: [] as string[], matchedDateKey: selectedDateKey };
+  };
+
+  const loadSlotsForDate = async (usernameToUse: string, eventTypeSlugToUse: string, timeZoneToUse: string) => {
+    const startTime = `${selectedDate}T00:00:00.000Z`;
+    const endDate = new Date(`${selectedDate}T00:00:00.000Z`);
+    endDate.setUTCDate(endDate.getUTCDate() + 1);
+    const endTime = endDate.toISOString();
+
+    const slotsUrl = `/api/v2/slots?username=${encodeURIComponent(usernameToUse)}&eventTypeSlug=${encodeURIComponent(eventTypeSlugToUse)}&startTime=${encodeURIComponent(startTime)}&endTime=${encodeURIComponent(endTime)}&timeZone=${encodeURIComponent(timeZoneToUse)}`;
+    const res = await fetch(slotsUrl);
+    const data = (await res.json()) as SlotsResponse;
+
+    if (!res.ok || data.status !== 'success') {
+      throw new Error(data.error?.message || 'Could not load availability.');
+    }
+
+    return pickSlotsForDate(data.data, selectedDate);
   };
 
   useEffect(() => {
@@ -180,83 +263,74 @@ export function TextSchedulingAssistant({
     setSelectedStart('');
 
     try {
-      let effectiveUsername = username;
-      let effectiveEventTypeSlug = eventTypeSlug;
+      let effectiveUsername = username.trim();
+      let effectiveEventTypeSlug = eventTypeSlug.trim();
+      let effectiveTimeZone = timeZone.trim() || 'UTC';
       let context = await loadEventContext(effectiveUsername, effectiveEventTypeSlug);
 
       setEventTitle(context.title);
       setEventLength(context.length);
 
-      // Recover automatically if defaults were stale and backend reports missing user.
-      if (!context.title && !context.length) {
-        throw new Error('Unable to load event details.');
-      }
-
-      const startTime = `${selectedDate}T00:00:00.000Z`;
-      const endDate = new Date(`${selectedDate}T00:00:00.000Z`);
-      endDate.setUTCDate(endDate.getUTCDate() + 1);
-      const endTime = endDate.toISOString();
-
-      const slotsUrl = `/api/v2/slots?username=${encodeURIComponent(username)}&eventTypeSlug=${encodeURIComponent(eventTypeSlug)}&startTime=${encodeURIComponent(startTime)}&endTime=${encodeURIComponent(endTime)}&timeZone=${encodeURIComponent(timeZone)}`;
-      const res = await fetch(slotsUrl);
-      const data = (await res.json()) as SlotsResponse;
-
-      if (!res.ok || data.status !== 'success') {
-        throw new Error(data.error?.message || 'Could not load availability.');
-      }
-
-      const slotsForDate = data.data?.[selectedDate] || [];
+      const { slots: slotsForDate, matchedDateKey } = await loadSlotsForDate(effectiveUsername, effectiveEventTypeSlug, effectiveTimeZone);
       setAvailableSlots(slotsForDate);
 
-      addMessage('user', `Find slots for ${selectedDate} (${timeZone})`);
+      addMessage('user', `Find slots for ${selectedDate} (${effectiveTimeZone})`);
       if (slotsForDate.length) {
         addMessage('assistant', `Found ${slotsForDate.length} available times for ${context.title}.`);
+        if (matchedDateKey !== selectedDate) {
+          addMessage('system', `Showing times from ${matchedDateKey} to match timezone alignment.`);
+        }
       } else {
         addMessage('assistant', 'No free times found for that date. Try a different date.');
       }
     } catch (error: any) {
       const message = error?.message || 'Failed to load slots.';
 
-      if (String(message).toLowerCase().includes('user not found')) {
-        const defaults = await getProfileDefaults();
-        if (defaults?.username) {
-          const effectiveUsername = defaults.username;
-          const effectiveEventTypeSlug =
-            !userEditedEventSlugRef.current && defaults.eventTypeSlug
-              ? defaults.eventTypeSlug
-              : eventTypeSlug;
+      const lowerMessage = String(message).toLowerCase();
+      const shouldAttemptRecovery = lowerMessage.includes('user not found') || lowerMessage.includes('event type not found');
 
-          if (!userEditedUsernameRef.current) setUsername(effectiveUsername);
-          if (!userEditedEventSlugRef.current && defaults.eventTypeSlug) {
-            setEventTypeSlug(defaults.eventTypeSlug);
-          }
-          if (!userEditedTimeZoneRef.current && defaults.timeZone) {
-            setTimeZone(defaults.timeZone);
-          }
+      if (shouldAttemptRecovery) {
+        const defaults = await getProfileDefaults(username.trim());
+        const effectiveUsername =
+          !userEditedUsernameRef.current && defaults?.username
+            ? defaults.username
+            : username.trim();
+        const effectiveEventTypeSlug =
+          !userEditedEventSlugRef.current && defaults?.eventTypeSlug
+            ? defaults.eventTypeSlug
+            : eventTypeSlug.trim();
+        const effectiveTimeZone =
+          !userEditedTimeZoneRef.current && defaults?.timeZone
+            ? defaults.timeZone
+            : timeZone.trim() || 'UTC';
 
+        if (!userEditedUsernameRef.current && defaults?.username) {
+          setUsername(defaults.username);
+        }
+        if (!userEditedEventSlugRef.current && defaults?.eventTypeSlug) {
+          setEventTypeSlug(defaults.eventTypeSlug);
+        }
+        if (!userEditedTimeZoneRef.current && defaults?.timeZone) {
+          setTimeZone(defaults.timeZone);
+        }
+
+        if (effectiveUsername && effectiveEventTypeSlug) {
           try {
             const context = await loadEventContext(effectiveUsername, effectiveEventTypeSlug);
             setEventTitle(context.title);
             setEventLength(context.length);
 
-            const startTime = `${selectedDate}T00:00:00.000Z`;
-            const endDate = new Date(`${selectedDate}T00:00:00.000Z`);
-            endDate.setUTCDate(endDate.getUTCDate() + 1);
-            const endTime = endDate.toISOString();
-
-            const slotsUrl = `/api/v2/slots?username=${encodeURIComponent(effectiveUsername)}&eventTypeSlug=${encodeURIComponent(effectiveEventTypeSlug)}&startTime=${encodeURIComponent(startTime)}&endTime=${encodeURIComponent(endTime)}&timeZone=${encodeURIComponent(timeZone)}`;
-            const res = await fetch(slotsUrl);
-            const data = (await res.json()) as SlotsResponse;
-
-            if (!res.ok || data.status !== 'success') {
-              throw new Error(data.error?.message || 'Could not load availability.');
-            }
-
-            const slotsForDate = data.data?.[selectedDate] || [];
+            const { slots: slotsForDate, matchedDateKey } = await loadSlotsForDate(
+              effectiveUsername,
+              effectiveEventTypeSlug,
+              effectiveTimeZone
+            );
             setAvailableSlots(slotsForDate);
 
             addMessage('assistant', `Profile defaults loaded. Found ${slotsForDate.length} available times.`);
-            setLoadingSlots(false);
+            if (matchedDateKey !== selectedDate) {
+              addMessage('system', `Showing times from ${matchedDateKey} to match timezone alignment.`);
+            }
             return;
           } catch {
             // Fall through to user-facing guidance below.
