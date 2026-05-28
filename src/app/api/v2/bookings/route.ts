@@ -603,8 +603,8 @@ export async function GET(request: NextRequest) {
       title: b.title || b.eventType?.title || "",
       status: b.status === "accepted" ? "accepted" : b.status,
       attendees: [{
-        name: resp.name || "",
-        email: resp.email || b.userPrimaryEmail || "",
+        name: resp.name || b.guestName || "",
+        email: resp.email || b.guestEmail || b.userPrimaryEmail || "",
         timeZone: resp.timeZone || "UTC",
         language: "fr",
       }],
