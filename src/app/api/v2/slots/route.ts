@@ -324,9 +324,16 @@ function apiError(message: string, status: number) {
   return NextResponse.json({ status: "error", error: { message } }, { status });
 }
 
-const timeZone = searchParams.get("timeZone") || "UTC";
 
-  // Validate date format
-  if (!/\d{4}-\d{2}-\d{2}/.test(date)) {
-    return NextResponse.json({ error: "Invalid date format. Use YYYY-MM-DD." }, { status: 400 });
+// Removed invalid top-level code. Date validation will be handled inside GET.
+  // Validate date format if 'startTime' or 'endTime' is provided
+  const { searchParams } = new URL(request.url);
+  const startTime = searchParams.get("startTime");
+  const endTime = searchParams.get("endTime");
+  const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+  if (startTime && !dateRegex.test(startTime.slice(0, 10))) {
+    return NextResponse.json({ error: "Invalid startTime format. Use YYYY-MM-DD or ISO string." }, { status: 400 });
+  }
+  if (endTime && !dateRegex.test(endTime.slice(0, 10))) {
+    return NextResponse.json({ error: "Invalid endTime format. Use YYYY-MM-DD or ISO string." }, { status: 400 });
   }
