@@ -47,19 +47,58 @@ function calendarLinks(booking: any, eventType: any) {
   };
 }
 
-function formatBooking(b: any, et: any) {
-  const responses = b.responses || {};
+function toPlainObject(value: unknown): Record<string, any> {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return value as Record<string, any>;
+  }
+
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        return parsed as Record<string, any>;
+      }
+    } catch {
+      return {};
+    }
+  }
+
+  return {};
+}
+
+function formatBooking(
+  b: any,
+  et: any,
+  fallback?: {
+    attendeeName?: string;
+    attendeeEmail?: string;
+    attendeeTimeZone?: string;
+    metadata?: Record<string, any>;
+  }
+) {
+  const responses = toPlainObject(b.responses);
+  const metadata = toPlainObject(b.metadata);
+  const fallbackMetadata = fallback?.metadata || {};
+  const normalizedMetadata = Object.keys(metadata).length ? metadata : fallbackMetadata;
+
+  const attendeeName = responses.name || fallback?.attendeeName || "";
+  const attendeeEmail = responses.email || b.userPrimaryEmail || fallback?.attendeeEmail || "";
+  const attendeeTimeZone = responses.timeZone || fallback?.attendeeTimeZone || "UTC";
+
+  const resolvedLocation =
+    b.location || (Array.isArray(et.locations) ? (et.locations?.[0]?.type || "") : "");
+
   return {
     id: b.id,
     uid: b.uid,
     start: b.startTime,
     end: b.endTime,
     status: b.status === "accepted" ? "accepted" : b.status,
-    attendees: [{ name: responses.name || "", email: responses.email || b.userPrimaryEmail || "", timeZone: responses.timeZone || "UTC", language: "fr" }],
+    attendees: [{ name: attendeeName, email: attendeeEmail, timeZone: attendeeTimeZone, language: "fr" }],
     guests: [],
-    location: b.location || Array.isArray(et.locations) ? (et.locations?.[0]?.type || "") : "",
+    location: resolvedLocation,
     meetingUrl: b.location || "",
-    metadata: b.metadata || {},
+    metadata: normalizedMetadata,
     paid: b.paid,
     eventTypeId: b.eventTypeId,
     calendarLinks: calendarLinks(b, et),
@@ -504,7 +543,12 @@ export async function POST(request: NextRequest) {
 
     const response = NextResponse.json({
       status: "success",
-      data: formatBooking(booking, eventType),
+      data: formatBooking(booking, eventType, {
+        attendeeName: guestName,
+        attendeeEmail: guestEmail,
+        attendeeTimeZone: guestTz,
+        metadata: metadataPayload,
+      }),
     }, { status: 201 });
 
     if (idempotencyKey) {
