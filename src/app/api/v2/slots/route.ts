@@ -34,6 +34,13 @@ function toLocalDateKey(date: Date, timeZone: string) {
   return `${String(p.year).padStart(4, "0")}-${String(p.month).padStart(2, "0")}-${String(p.day).padStart(2, "0")}`;
 }
 
+function addDaysToDateKey(dateKey: string, days: number) {
+  const [year, month, day] = dateKey.split("-").map(Number);
+  const d = new Date(Date.UTC(year, month - 1, day));
+  d.setUTCDate(d.getUTCDate() + days);
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
+}
+
 // Convert a local YYYY-MM-DD + HH:mm in a specific timeZone into a UTC Date.
 function zonedLocalToUtc(dateKey: string, timeHm: string, timeZone: string) {
   const [year, month, day] = dateKey.split("-").map(Number);
@@ -190,10 +197,11 @@ export async function GET(request: NextRequest) {
   const minNoticeMs = (et.minNotice ?? 60) * 60 * 1000;
   const noticeCutoff = new Date(Date.now() + minNoticeMs);
 
-  // Parse date range (default: next 7 days)
-  const rangeStart = startTime ? new Date(startTime) : new Date();
-  rangeStart.setHours(0, 0, 0, 0);
-  const rangeEnd = endTime ? new Date(endTime) : new Date(rangeStart.getTime() + 7 * 86400000);
+  // Parse date range as local calendar days in requested timezone (default: next 7 days).
+  const rangeStartDay = startTime ? startTime.slice(0, 10) : toLocalDateKey(new Date(), timeZone);
+  const rangeEndDay = endTime ? endTime.slice(0, 10) : addDaysToDateKey(rangeStartDay, 6);
+  const rangeStart = zonedLocalToUtc(rangeStartDay, "00:00", timeZone);
+  const rangeEnd = new Date(zonedLocalToUtc(rangeEndDay, "23:59", timeZone).getTime() + 59999);
 
   const bufB = et.bufferBefore || 0;
   const bufA = et.bufferAfter || 0;
@@ -293,14 +301,14 @@ export async function GET(request: NextRequest) {
   const slotsByDay: Record<string, string[]> = {};
 
   // Iterate each day in range
-  const cursor = new Date(rangeStart);
-  while (cursor < rangeEnd) {
-    const dayStr = toLocalDateKey(cursor, timeZone);
+  let dayCursor = rangeStartDay;
+  while (dayCursor <= rangeEndDay) {
+    const dayStr = dayCursor;
     const dayOfWeek = new Date(`${dayStr}T00:00:00Z`).getUTCDay();
 
     // Skip days explicitly blocked by host overrides.
     if (blockedDates.has(dayStr)) {
-      cursor.setUTCDate(cursor.getUTCDate() + 1);
+      dayCursor = addDaysToDateKey(dayCursor, 1);
       continue;
     }
 
@@ -378,7 +386,7 @@ export async function GET(request: NextRequest) {
       if (!slotsByDay[dayStr].length) delete slotsByDay[dayStr];
     }
 
-    cursor.setUTCDate(cursor.getUTCDate() + 1);
+    dayCursor = addDaysToDateKey(dayCursor, 1);
   }
 
   return NextResponse.json({ status: "success", data: slotsByDay });
