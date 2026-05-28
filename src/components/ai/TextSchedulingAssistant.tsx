@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { themes } from '@/lib/theme';
 
 type ChatMessage = {
@@ -56,6 +56,7 @@ type ProfileDefaults = {
   username: string;
   eventTypeSlug: string;
   timeZone: string;
+  activeEventTypeCount: number;
 };
 
 function toDateInputValue(date: Date) {
@@ -81,7 +82,7 @@ function createId() {
 
 export function TextSchedulingAssistant({
   defaultUsername = 'planxo',
-  defaultEventTypeSlug = 'appel-de-decouverte',
+  defaultEventTypeSlug = '',
 }: {
   defaultUsername?: string;
   defaultEventTypeSlug?: string;
@@ -90,6 +91,7 @@ export function TextSchedulingAssistant({
   const userEditedUsernameRef = useRef(false);
   const userEditedEventSlugRef = useRef(false);
   const userEditedTimeZoneRef = useRef(false);
+  const attemptedProvisionRef = useRef(false);
   const [username, setUsername] = useState(defaultUsername);
   const [eventTypeSlug, setEventTypeSlug] = useState(defaultEventTypeSlug);
   const [selectedDate, setSelectedDate] = useState(toDateInputValue(new Date()));
@@ -119,7 +121,32 @@ export function TextSchedulingAssistant({
     setMessages((prev) => [...prev, { id: createId(), role, text }]);
   };
 
-  const getProfileDefaults = async (usernameHint?: string): Promise<ProfileDefaults | null> => {
+  const provisionDefaultEventType = useCallback(async () => {
+    if (attemptedProvisionRef.current) return null;
+    attemptedProvisionRef.current = true;
+
+    try {
+      const slug = `quick-call-${Math.random().toString(36).slice(2, 8)}`;
+      const res = await fetch('/api/v2/event-types', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: 'Quick Call',
+          slug,
+          length: 30,
+          location: 'google-meet',
+        }),
+      });
+
+      if (!res.ok) return null;
+      const payload = (await res.json()) as { data?: { slug?: string } };
+      return payload.data?.slug || slug;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const getProfileDefaults = useCallback(async (usernameHint?: string): Promise<ProfileDefaults | null> => {
     const endpoints = ['/api/v2/me'];
     if (usernameHint) {
       endpoints.push(`/api/v2/me?username=${encodeURIComponent(usernameHint)}`);
@@ -131,14 +158,23 @@ export function TextSchedulingAssistant({
         if (!res.ok) continue;
 
         const data = (await res.json()) as MeResponse;
-        const suggestedSlug =
+        const activeEventTypeCount = Array.isArray(data.eventTypes) ? data.eventTypes.length : 0;
+
+        let suggestedSlug =
           data.eventTypes?.find((eventType) => eventType?.isActive !== false && typeof eventType?.slug === 'string' && eventType.slug.length > 0)
             ?.slug ||
           data.eventTypes?.find((eventType) => typeof eventType?.slug === 'string' && eventType.slug.length > 0)?.slug ||
           '';
 
+        if (!suggestedSlug && endpoint === '/api/v2/me' && !usernameHint) {
+          const provisionedSlug = await provisionDefaultEventType();
+          if (provisionedSlug) {
+            suggestedSlug = provisionedSlug;
+          }
+        }
+
         const resolvedUsername = data.username || usernameHint || '';
-        if (!resolvedUsername && !suggestedSlug && !data.timeZone) {
+        if (!resolvedUsername && !suggestedSlug && !data.timeZone && activeEventTypeCount === 0) {
           continue;
         }
 
@@ -146,6 +182,7 @@ export function TextSchedulingAssistant({
           username: resolvedUsername,
           eventTypeSlug: suggestedSlug,
           timeZone: data.timeZone || '',
+          activeEventTypeCount,
         };
       } catch {
         // Try next endpoint candidate.
@@ -153,7 +190,7 @@ export function TextSchedulingAssistant({
     }
 
     return null;
-  };
+  }, [provisionDefaultEventType]);
 
   const pickSlotsForDate = (slotMap: Record<string, string[]> | undefined, selectedDateKey: string) => {
     if (!slotMap) {
@@ -240,7 +277,7 @@ export function TextSchedulingAssistant({
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [getProfileDefaults]);
 
   const loadEventContext = async (usernameToUse: string, eventTypeSlugToUse: string) => {
     const url = `/api/v2/public-booking?username=${encodeURIComponent(usernameToUse)}&eventSlug=${encodeURIComponent(eventTypeSlugToUse)}`;
@@ -266,6 +303,11 @@ export function TextSchedulingAssistant({
       let effectiveUsername = username.trim();
       let effectiveEventTypeSlug = eventTypeSlug.trim();
       let effectiveTimeZone = timeZone.trim() || 'UTC';
+
+      if (!effectiveUsername || !effectiveEventTypeSlug) {
+        throw new Error('Please enter Username and Event slug.');
+      }
+
       let context = await loadEventContext(effectiveUsername, effectiveEventTypeSlug);
 
       setEventTitle(context.title);
@@ -291,6 +333,12 @@ export function TextSchedulingAssistant({
 
       if (shouldAttemptRecovery) {
         const defaults = await getProfileDefaults(username.trim());
+        if (defaults && defaults.activeEventTypeCount === 0 && !defaults.eventTypeSlug) {
+          setAvailableSlots([]);
+          addMessage('system', 'No active event types found for this profile. Create or activate one in Event Types, then try again.');
+          return;
+        }
+
         const effectiveUsername =
           !userEditedUsernameRef.current && defaults?.username
             ? defaults.username
