@@ -39,6 +39,10 @@ export interface CallContext {
   attendeeEmail?: string;
   attendeePhone?: string;
   availability?: string[];
+  name?: string;
+  email?: string;
+  startTime?: string;
+  date?: string;
 }
 
 export type ConversationState = 
