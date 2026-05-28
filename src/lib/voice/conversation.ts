@@ -85,32 +85,38 @@ export class ConversationManager {
   }
 
   async processUserInput(input: string): Promise<void> {
+    console.log('[ConversationManager] Processing user input:', input);
     this.addToTranscript('user', input);
 
-    // Check for missing fields
     const context = this.getContext();
+    console.log('[ConversationManager] Current context:', context);
+
     if (!context.name) {
+      console.log('[ConversationManager] Missing name, prompting user');
       this.addToTranscript('assistant', "Quel est votre nom complet ?");
       this.updateContext({ name: input });
       return;
     }
 
     if (!context.email) {
+      console.log('[ConversationManager] Missing email, prompting user');
       this.addToTranscript('assistant', "Quelle est votre adresse e-mail ?");
       this.updateContext({ email: input });
       return;
     }
 
     if (!context.startTime) {
+      console.log('[ConversationManager] Missing start time, prompting user');
       this.addToTranscript('assistant', "À quelle heure souhaitez-vous réserver ?");
       this.updateContext({ startTime: input });
       return;
     }
 
-    // All fields are collected, proceed to booking
+    console.log('[ConversationManager] All fields collected, proceeding to booking');
     this.addToTranscript('assistant', "Je vérifie la disponibilité...");
     const tools = this.tools;
     if (!tools?.createBooking) {
+      console.warn('[ConversationManager] createBooking tool not available');
       this.addToTranscript('assistant', "Désolé, je ne peux pas effectuer de réservation pour le moment.");
       return;
     }
@@ -125,11 +131,14 @@ export class ConversationManager {
       });
 
       if (result.success) {
+        console.log('[ConversationManager] Booking successful:', result.booking);
         this.addToTranscript('assistant', "Votre rendez-vous a été réservé avec succès !");
       } else {
+        console.warn('[ConversationManager] Booking failed:', result.message);
         this.addToTranscript('assistant', `Échec de la réservation : ${result.message}`);
       }
     } catch (error) {
+      console.error('[ConversationManager] Error during booking:', error);
       this.addToTranscript('assistant', "Une erreur s'est produite lors de la réservation. Veuillez réessayer plus tard.");
     }
   }

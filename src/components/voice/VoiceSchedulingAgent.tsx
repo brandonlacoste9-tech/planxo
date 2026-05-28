@@ -341,12 +341,16 @@ export function VoiceSchedulingAgent({
   }, []);
 
   const speak = useCallback(async (text: string) => {
+    console.log('[VoiceAgent] Speaking text:', text);
     if (!isMountedRef.current) return;
-    if (!selectedVoice || !text.trim()) return;
+    if (!selectedVoice || !text.trim()) {
+      console.warn('[VoiceAgent] No voice selected or empty text');
+      return;
+    }
 
     const audioEl = audioRef.current;
     if (!audioEl) {
-      console.warn('Audio element not ready yet');
+      console.warn('[VoiceAgent] Audio element not ready');
       return;
     }
 
@@ -356,6 +360,7 @@ export function VoiceSchedulingAgent({
     const route = mode === 'dashboard' ? '/api/v2/elevenlabs/tts' : '/api/demo/elevenlabs/tts';
 
     try {
+      console.log('[VoiceAgent] Fetching TTS from:', route);
       const res = await fetch(route, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -372,70 +377,25 @@ export function VoiceSchedulingAgent({
       const url = URL.createObjectURL(blob);
       currentAudioUrlRef.current = url;
 
-      // Use the React-managed <audio> element instead of new Audio()
-      // This dramatically reduces "removeChild" / DOM lifecycle crashes
       audioEl.src = url;
       audioEl.volume = volume;
 
-      const handleEnded = () => {
+      audioEl.onended = () => {
+        console.log('[VoiceAgent] Audio playback ended');
         setIsSpeaking(false);
-
         if (currentAudioUrlRef.current) {
-          try { URL.revokeObjectURL(currentAudioUrlRef.current); } catch {}
+          URL.revokeObjectURL(currentAudioUrlRef.current);
           currentAudioUrlRef.current = null;
-        }
-
-        // Clear handler to avoid duplicates
-        try { audioEl.onended = null; } catch {}
-
-        // Continuous mode restart is now very conservative after any audio activity
-        const timeSinceAudioError = Date.now() - lastAudioErrorRef.current;
-        if (continuousModeRef.current && 
-            !isListeningRef.current && 
-            !isProcessingRef.current &&
-            recognitionRef.current &&
-            timeSinceAudioError > 5000) {   // longer cooldown
-          setTimeout(() => {
-            if (!isListeningRef.current && !isProcessingRef.current) {
-              startListening();
-            }
-          }, 800); // slightly longer delay
         }
       };
 
-      audioEl.onended = handleEnded;
-
       await audioEl.play().catch((playErr) => {
-        // Some browsers block autoplay even after user gesture in edge cases
-        console.warn('Audio play() was blocked or failed:', playErr);
-        throw playErr; // let the outer catch handle cleanup
+        console.warn('[VoiceAgent] Audio play() failed:', playErr);
+        throw playErr;
       });
-    } catch (err: any) {
-      console.error('Speak error (ElevenLabs TTS):', err);
+    } catch (err) {
+      console.error('[VoiceAgent] Speak error:', err);
       setIsSpeaking(false);
-
-      // Always clean up the object URL on any failure
-      if (currentAudioUrlRef.current) {
-        try { URL.revokeObjectURL(currentAudioUrlRef.current); } catch {}
-        currentAudioUrlRef.current = null;
-      }
-
-      // Reset the audio element to a clean state
-      if (audioEl) {
-        try {
-          audioEl.src = '';
-          audioEl.onended = null;
-        } catch {}
-      }
-
-      if (err.message?.includes('quota') || err.message?.includes('429')) {
-        setSpeechError('ElevenLabs quota reached for this voice. Try another voice or wait a bit.');
-      } else if (err.name === 'NotAllowedError' || String(err).includes('play')) {
-        setSpeechError('Browser blocked audio playback. Click the mic or page once to enable sound.');
-      } else {
-        setSpeechError('Could not generate voice. The AI will continue in text only for now.');
-      }
-      setTimeout(() => setSpeechError(''), 5000);
     }
   }, [selectedVoice, selectedLang, volume, mode, stopSpeaking]);
 
@@ -532,7 +492,11 @@ export function VoiceSchedulingAgent({
 
   // === Core message handling ===
   const handleSendMessage = async (text: string) => {
-    if (!conversationRef.current || isProcessing) return;
+    console.log('[VoiceAgent] User input:', text);
+    if (!conversationRef.current || isProcessing) {
+      console.warn('[VoiceAgent] ConversationManager not ready or already processing');
+      return;
+    }
 
     stopListening();
     stopSpeaking();
@@ -541,9 +505,10 @@ export function VoiceSchedulingAgent({
     setMessages(prev => [...prev, { role: 'user', text, timestamp: new Date() }]);
 
     try {
+      console.log('[VoiceAgent] Sending input to ConversationManager');
       await conversationRef.current.processUserInput(text);
     } catch (err) {
-      console.error(err);
+      console.error('[VoiceAgent] Error processing user input:', err);
     } finally {
       setIsProcessing(false);
     }
