@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { getEnvVar, validateDataLayerEnv } from "@/lib/env";
 
 type CookieToSet = {
   name: string;
@@ -8,11 +9,15 @@ type CookieToSet = {
 };
 
 export async function createClient() {
+  validateDataLayerEnv();
+
   const cookieStore = await cookies();
+  const supabaseUrl = getEnvVar("NEXT_PUBLIC_SUPABASE_URL", "supabase-server");
+  const supabaseAnonKey = getEnvVar("NEXT_PUBLIC_SUPABASE_ANON_KEY", "supabase-server");
 
   return createServerClient<any>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    supabaseUrl,
+    supabaseAnonKey,
     {
       cookies: {
         getAll() {
@@ -31,9 +36,14 @@ export async function createClient() {
 }
 
 export async function createAdminClient() {
+  validateDataLayerEnv();
+
+  const supabaseUrl = getEnvVar("NEXT_PUBLIC_SUPABASE_URL", "supabase-admin");
+  const supabaseServiceRoleKey = getEnvVar("SUPABASE_SERVICE_ROLE_KEY", "supabase-admin");
+
   return createServerClient<any>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    supabaseUrl,
+    supabaseServiceRoleKey,
     {
       cookies: {
         getAll() { return []; },

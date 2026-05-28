@@ -1,4 +1,7 @@
 import { PrismaClient } from "@prisma/client";
+import { validateDataLayerEnv } from "@/lib/env";
+
+validateDataLayerEnv();
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;

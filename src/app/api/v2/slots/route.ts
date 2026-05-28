@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { prisma } from "@/lib/prisma";
+import { getExternalBusyTimes } from "@/lib/calendar-sync";
 
 export const dynamic = "force-dynamic";
 
@@ -233,6 +234,18 @@ export async function GET(request: NextRequest) {
     select: { startTime: true, endTime: true, userId: true }
   });
 
+  const externalBusyByUser = new Map<string, Array<{ start: Date; end: Date }>>();
+  await Promise.all(
+    teamMemberIds.map(async (memberId) => {
+      try {
+        const busySlots = await getExternalBusyTimes(memberId, rangeStart, rangeEnd);
+        externalBusyByUser.set(memberId, busySlots || []);
+      } catch {
+        externalBusyByUser.set(memberId, []);
+      }
+    })
+  );
+
   const bookingsPerUserPerDay = new Map<string, number>();
   for (const b of allBookings) {
     const key = `${b.userId}|${toLocalDateKey(new Date(b.startTime), timeZone)}`;
@@ -260,6 +273,7 @@ export async function GET(request: NextRequest) {
           (i.dayOfWeek === dayOfWeek || (Array.isArray(i.days) && i.days.includes(dayOfWeek)))
       );
       const memberBookings = (allBookings || []).filter((b: any) => b.userId === sched.userId);
+      const memberExternalBusy = externalBusyByUser.get(sched.userId) || [];
 
       const dailyBookingCount = bookingsPerUserPerDay.get(`${sched.userId}|${dayStr}`) || 0;
       if (et.maxPerDay && dailyBookingCount >= et.maxPerDay) {
@@ -283,7 +297,9 @@ export async function GET(request: NextRequest) {
           const bEnd = new Date(slotEnd.getTime() + bufA * 60000);
 
           // Check this member's booking conflicts
-          const conflict = memberBookings.some((b: any) => new Date(b.startTime) < bEnd && new Date(b.endTime) > bStart);
+          const localConflict = memberBookings.some((b: any) => new Date(b.startTime) < bEnd && new Date(b.endTime) > bStart);
+          const externalConflict = memberExternalBusy.some((busySlot) => busySlot.start < bEnd && busySlot.end > bStart);
+          const conflict = localConflict || externalConflict;
 
           if (!conflict) {
             const iso = slotStart.toISOString();

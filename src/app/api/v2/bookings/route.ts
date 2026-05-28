@@ -70,6 +70,9 @@ function formatBooking(b: any, et: any) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
+    const idempotencyKeyHeader = request.headers.get("Idempotency-Key");
+    const idempotencyKeyBody = typeof body?.idempotencyKey === "string" ? body.idempotencyKey : "";
+    const idempotencyKey = (idempotencyKeyHeader || idempotencyKeyBody || "").trim();
 
     // Resolve event type: by ID or by slug+username
     let eventTypeId = body.eventTypeId;
@@ -126,6 +129,33 @@ export async function POST(request: NextRequest) {
 
     const ownerUserId = String(userId || eventType.userId || "");
     if (!ownerUserId) return apiError("Missing host user", 500);
+
+    if (idempotencyKey) {
+      const { data: existingBookingByIdempotency, error: idempotencyLookupError } = await supabase
+        .from("Booking")
+        .select("*, eventType:EventType(*)")
+        .eq("eventTypeId", eventTypeId)
+        .eq("userId", ownerUserId)
+        .contains("metadata", { idempotencyKey })
+        .order("createdAt", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (idempotencyLookupError) {
+        console.warn("Idempotency lookup failed, continuing without replay check:", idempotencyLookupError.message);
+      } else if (existingBookingByIdempotency) {
+        const replayResponse = NextResponse.json(
+          {
+            status: "success",
+            data: formatBooking(existingBookingByIdempotency, existingBookingByIdempotency.eventType || eventType),
+          },
+          { status: 200 }
+        );
+        replayResponse.headers.set("X-Idempotent-Replay", "true");
+        replayResponse.headers.set("X-RateLimit-Remaining", "118");
+        return replayResponse;
+      }
+    }
 
     const schedulingType = normalizeSchedulingType(eventType.schedulingType);
     const teamIds = (schedulingType === "round_robin" || schedulingType === "collective" || schedulingType === "pooled")
@@ -211,6 +241,15 @@ export async function POST(request: NextRequest) {
       location: locationType,
     };
 
+    const metadataPayload: Record<string, any> =
+      body?.metadata && typeof body.metadata === "object" && !Array.isArray(body.metadata)
+        ? { ...body.metadata }
+        : {};
+
+    if (idempotencyKey) {
+      metadataPayload.idempotencyKey = idempotencyKey;
+    }
+
     const baseInsertPayload: Record<string, any> = {
       id: bookingId,
       uid: bookingUid,
@@ -228,7 +267,7 @@ export async function POST(request: NextRequest) {
       location: meetingUrl || "",
       userPrimaryEmail: guestEmail,
       responses,
-      metadata: {},
+      metadata: metadataPayload,
       createdAt: now,
       updatedAt: now,
     };
@@ -336,6 +375,9 @@ export async function POST(request: NextRequest) {
       data: formatBooking(booking, eventType),
     }, { status: 201 });
 
+    if (idempotencyKey) {
+      response.headers.set("X-Idempotency-Key", idempotencyKey);
+    }
     response.headers.set("X-RateLimit-Remaining", "118");
     return response;
   } catch (e: any) {

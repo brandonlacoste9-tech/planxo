@@ -1,16 +1,15 @@
 import { createClient } from "@supabase/supabase-js";
+import { getEnvVar, validateDataLayerEnv } from "@/lib/env";
 
 let supabaseClient: any = null;
 
 function getSupabaseClient() {
 	if (supabaseClient) return supabaseClient;
 
-	const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-	const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+	validateDataLayerEnv();
 
-	if (!supabaseUrl || !supabaseKey) {
-		throw new Error("Missing Supabase environment variables");
-	}
+	const supabaseUrl = getEnvVar("NEXT_PUBLIC_SUPABASE_URL", "supabase-service");
+	const supabaseKey = getEnvVar("SUPABASE_SERVICE_ROLE_KEY", "supabase-service");
 
 	  supabaseClient = createClient<any>(supabaseUrl, supabaseKey);
 	return supabaseClient;
