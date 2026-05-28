@@ -178,9 +178,9 @@ export async function POST(request: NextRequest) {
     const locationType = eventType.location; // already mapped from locations[0].type
     let meetingUrl = body.meetingUrl || null;
     if (!meetingUrl) {
-      if (locationType?.includes("google")) meetingUrl = `https://meet.google.com/${rand()}`;
-      else if (locationType?.includes("zoom")) meetingUrl = `https://zoom.us/j/${Math.floor(Math.random() * 9999999999)}`;
-      else if (locationType?.includes("teams")) meetingUrl = `https://teams.microsoft.com/l/meetup-join/${rand()}`;
+      if (locationType?.includes("zoom")) {
+        meetingUrl = `https://zoom.us/j/${Math.floor(Math.random() * 9999999999)}`;
+      }
     }
 
     // ── Host-aware conflict checks + assignment ──
@@ -354,31 +354,96 @@ export async function POST(request: NextRequest) {
     }
 
     // ── External calendar sync (non-blocking): Google + Outlook ──
+    let syncedMeetingUrl = booking.location || null;
     try {
       const { createGoogleCalendarEvent, createOutlookCalendarEvent } = await import("@/lib/calendar-sync");
-      await createGoogleCalendarEvent({
-        userId: assignedUserId,
-        title: `${eventType?.title || "Rendez-vous"} avec ${guestName}`,
-        startTime: booking.startTime || start.toISOString(),
-        endTime: booking.endTime || end.toISOString(),
-        attendeeEmail: guestEmail,
-        attendeeName: guestName,
-        meetingUrl: booking.location || undefined,
-        timeZone: "America/Toronto",
-      });
 
-      await createOutlookCalendarEvent({
-        userId: assignedUserId,
-        title: `${eventType?.title || "Rendez-vous"} avec ${guestName}`,
-        startTime: booking.startTime || start.toISOString(),
-        endTime: booking.endTime || end.toISOString(),
-        attendeeEmail: guestEmail,
-        attendeeName: guestName,
-        meetingUrl: booking.location || undefined,
-        timeZone: "UTC",
-      });
+      if (locationType?.includes("teams")) {
+        try {
+          const outlookEvent = await createOutlookCalendarEvent({
+            userId: assignedUserId,
+            title: `${eventType?.title || "Rendez-vous"} avec ${guestName}`,
+            startTime: booking.startTime || start.toISOString(),
+            endTime: booking.endTime || end.toISOString(),
+            attendeeEmail: guestEmail,
+            attendeeName: guestName,
+            meetingUrl: syncedMeetingUrl || undefined,
+            locationType,
+            timeZone: "UTC",
+          });
+          const teamsJoin = outlookEvent?.onlineMeeting?.joinUrl;
+          if (!syncedMeetingUrl && teamsJoin) syncedMeetingUrl = teamsJoin;
+        } catch (outlookErr) {
+          console.error("Outlook Calendar sync failed (non-blocking):", outlookErr);
+        }
+
+        try {
+          await createGoogleCalendarEvent({
+            userId: assignedUserId,
+            title: `${eventType?.title || "Rendez-vous"} avec ${guestName}`,
+            startTime: booking.startTime || start.toISOString(),
+            endTime: booking.endTime || end.toISOString(),
+            attendeeEmail: guestEmail,
+            attendeeName: guestName,
+            meetingUrl: syncedMeetingUrl || undefined,
+            locationType,
+            timeZone: "America/Toronto",
+          });
+        } catch (googleErr) {
+          console.error("Google Calendar sync failed (non-blocking):", googleErr);
+        }
+      } else {
+        try {
+          const googleEvent = await createGoogleCalendarEvent({
+            userId: assignedUserId,
+            title: `${eventType?.title || "Rendez-vous"} avec ${guestName}`,
+            startTime: booking.startTime || start.toISOString(),
+            endTime: booking.endTime || end.toISOString(),
+            attendeeEmail: guestEmail,
+            attendeeName: guestName,
+            meetingUrl: syncedMeetingUrl || undefined,
+            locationType,
+            timeZone: "America/Toronto",
+          });
+          const googleMeetLink =
+            googleEvent?.hangoutLink ||
+            googleEvent?.conferenceData?.entryPoints?.find((entry: any) => entry?.entryPointType === "video")?.uri;
+          if (!syncedMeetingUrl && googleMeetLink) syncedMeetingUrl = googleMeetLink;
+        } catch (googleErr) {
+          console.error("Google Calendar sync failed (non-blocking):", googleErr);
+        }
+
+        try {
+          await createOutlookCalendarEvent({
+            userId: assignedUserId,
+            title: `${eventType?.title || "Rendez-vous"} avec ${guestName}`,
+            startTime: booking.startTime || start.toISOString(),
+            endTime: booking.endTime || end.toISOString(),
+            attendeeEmail: guestEmail,
+            attendeeName: guestName,
+            meetingUrl: syncedMeetingUrl || undefined,
+            locationType,
+            timeZone: "UTC",
+          });
+        } catch (outlookErr) {
+          console.error("Outlook Calendar sync failed (non-blocking):", outlookErr);
+        }
+      }
+
+      if (syncedMeetingUrl && syncedMeetingUrl !== booking.location) {
+        const { data: updatedBooking } = await supabase
+          .from("Booking")
+          .update({ location: syncedMeetingUrl, updatedAt: new Date().toISOString() })
+          .eq("id", booking.id)
+          .select()
+          .single();
+
+        if (updatedBooking) {
+          booking = updatedBooking;
+        }
+      }
     } catch (calErr) {
-      console.error("External calendar sync failed (non-blocking):", calErr);
+      console.error("External calendar sync setup failed (non-blocking):", calErr);
     }
 
     const response = NextResponse.json({

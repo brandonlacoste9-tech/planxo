@@ -25,6 +25,7 @@ export interface CreateGoogleCalendarEventParams {
   attendeeEmail: string;
   attendeeName?: string;
   meetingUrl?: string;
+  locationType?: string;
   timeZone?: string;
 }
 
@@ -45,6 +46,7 @@ export async function createGoogleCalendarEvent(
     attendeeEmail,
     attendeeName,
     meetingUrl,
+    locationType,
     timeZone = "America/Toronto",
   } = params;
 
@@ -63,21 +65,19 @@ export async function createGoogleCalendarEvent(
     attendees: [{ email: attendeeEmail, displayName: attendeeName || attendeeEmail }],
   };
 
+  const normalizedLocationType = String(locationType || "").toLowerCase();
+  const shouldCreateNativeMeet = !meetingUrl && normalizedLocationType.includes("google");
+
   // If the meeting URL is a Google Meet link, attach it as conferenceData
-  if (meetingUrl?.includes("meet.google.com")) {
+  if (shouldCreateNativeMeet) {
     eventBody.conferenceData = {
-      entryPoints: [
-        {
-          entryPointType: "video",
-          uri: meetingUrl,
-          label: meetingUrl,
-        },
-      ],
-      conferenceSolution: {
-        key: { type: "hangoutsMeet" },
-        name: "Google Meet",
+      createRequest: {
+        requestId: `plx-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        conferenceSolutionKey: { type: "hangoutsMeet" },
       },
     };
+  } else if (meetingUrl?.includes("meet.google.com")) {
+    eventBody.location = meetingUrl;
   } else if (meetingUrl) {
     // For Zoom, Teams, or other URLs — set as location
     eventBody.location = meetingUrl;
@@ -120,6 +120,7 @@ export interface CreateOutlookCalendarEventParams {
   attendeeEmail: string;
   attendeeName?: string;
   meetingUrl?: string;
+  locationType?: string;
   timeZone?: string;
 }
 
@@ -134,6 +135,7 @@ export async function createOutlookCalendarEvent(
     attendeeEmail,
     attendeeName,
     meetingUrl,
+    locationType,
     timeZone = "UTC",
   } = params;
 
@@ -162,6 +164,14 @@ export async function createOutlookCalendarEvent(
       },
     ],
   };
+
+  const normalizedLocationType = String(locationType || "").toLowerCase();
+  const shouldCreateNativeTeams = !meetingUrl && normalizedLocationType.includes("teams");
+
+  if (shouldCreateNativeTeams) {
+    eventBody.isOnlineMeeting = true;
+    eventBody.onlineMeetingProvider = "teamsForBusiness";
+  }
 
   if (meetingUrl) {
     eventBody.location = {
