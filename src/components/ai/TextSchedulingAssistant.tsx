@@ -117,6 +117,7 @@ export function TextSchedulingAssistant({
   const [eventTitle, setEventTitle] = useState('Discovery Call');
   const [eventLength, setEventLength] = useState<number>(30);
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
+  const [sameDayOnly, setSameDayOnly] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: createId(),
@@ -175,7 +176,6 @@ export function TextSchedulingAssistant({
               startTime: '09:00:00',
               endTime: '17:00:00',
               isActive: true,
-        const [sameDayOnly, setSameDayOnly] = useState(false);
             },
           ],
         }),
