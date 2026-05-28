@@ -25,6 +25,10 @@ const DEFAULT_TEMPLATES = {
   },
 };
 
+function isMissingColumnError(error: any) {
+  return error?.code === "P2022";
+}
+
 export async function GET() {
   try {
     const supabase = await createClient();
@@ -34,12 +38,17 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const user = await prisma.user.findUnique({
-      where: { id: authUser.id },
-      select: { reminderPreferences: true },
-    });
-
-    const prefs = (user?.reminderPreferences as ReminderPreferences) || {};
+    let prefs: ReminderPreferences = {};
+    try {
+      const user = await prisma.user.findUnique({
+        where: { id: authUser.id },
+        select: { reminderPreferences: true },
+      });
+      prefs = (user?.reminderPreferences as ReminderPreferences) || {};
+    } catch (error: any) {
+      if (!isMissingColumnError(error)) throw error;
+      prefs = {};
+    }
 
     // Merge with defaults if not set
     const response = {
@@ -74,12 +83,17 @@ export async function PATCH(request: NextRequest) {
     const { email24h, sms2h } = body;
 
     // Get current preferences
-    const currentUser = await prisma.user.findUnique({
-      where: { id: authUser.id },
-      select: { reminderPreferences: true },
-    });
-
-    const currentPrefs = (currentUser?.reminderPreferences as ReminderPreferences) || {};
+    let currentPrefs: ReminderPreferences = {};
+    try {
+      const currentUser = await prisma.user.findUnique({
+        where: { id: authUser.id },
+        select: { reminderPreferences: true },
+      });
+      currentPrefs = (currentUser?.reminderPreferences as ReminderPreferences) || {};
+    } catch (error: any) {
+      if (!isMissingColumnError(error)) throw error;
+      currentPrefs = {};
+    }
 
     const updatedPrefs: ReminderPreferences = {
       email24h: {
@@ -93,12 +107,17 @@ export async function PATCH(request: NextRequest) {
       },
     };
 
-    await prisma.user.update({
-      where: { id: authUser.id },
-      data: {
-        reminderPreferences: updatedPrefs as any,
-      },
-    });
+    try {
+      await prisma.user.update({
+        where: { id: authUser.id },
+        data: {
+          reminderPreferences: updatedPrefs as any,
+        },
+      });
+    } catch (error: any) {
+      if (!isMissingColumnError(error)) throw error;
+      // Legacy schema: column is absent, so we return success with computed defaults.
+    }
 
     return NextResponse.json({ success: true, preferences: updatedPrefs });
   } catch (error: any) {

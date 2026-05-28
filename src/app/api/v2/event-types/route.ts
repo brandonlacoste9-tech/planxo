@@ -80,6 +80,51 @@ function parseMissingColumn(error: any) {
   return match?.[1] || null;
 }
 
+function generateEventTypeId() {
+  return `evt_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+async function createEventTypeLegacyInsert(params: {
+  userId: string;
+  title: string;
+  slug: string;
+  length: number;
+}) {
+  const id = generateEventTypeId();
+  await prisma.$executeRawUnsafe(
+    'INSERT INTO "public"."EventType" ("id", "userId", "title", "slug", "length") VALUES ($1, $2, $3, $4, $5)',
+    id,
+    params.userId,
+    params.title,
+    params.slug,
+    params.length
+  );
+
+  return { id };
+}
+
+async function createEventTypeCompat(params: {
+  userId: string;
+  title: string;
+  slug: string;
+  length: number;
+}) {
+  try {
+    return await prisma.eventType.create({
+      data: {
+        userId: params.userId,
+        title: params.title,
+        slug: params.slug,
+        length: params.length,
+      },
+      select: { id: true },
+    });
+  } catch (error: any) {
+    if (!isMissingColumnError(error)) throw error;
+    return createEventTypeLegacyInsert(params);
+  }
+}
+
 function withEventTypeDefaults(eventType: any) {
   if (!eventType) return eventType;
   return {
@@ -165,28 +210,25 @@ export async function POST(request: NextRequest) {
 
     const baseSlug = body.slug || `rdv-${Date.now()}`;
 
+    const createTitle = body.title || "Nouveau rendez-vous";
+    const createLength = body.length || 30;
+
     let created: { id: string } | null = null;
     try {
-      created = await prisma.eventType.create({
-        data: {
-          userId: user.id,
-          title: body.title || "Nouveau rendez-vous",
-          slug: baseSlug,
-          length: body.length || 30,
-        },
-        select: { id: true },
+      created = await createEventTypeCompat({
+        userId: user.id,
+        title: createTitle,
+        slug: baseSlug,
+        length: createLength,
       });
     } catch (error: any) {
       if (!isUniqueConstraintError(error)) throw error;
 
-      created = await prisma.eventType.create({
-        data: {
-          userId: user.id,
-          title: body.title || "Nouveau rendez-vous",
-          slug: `${baseSlug}-${Date.now().toString().slice(-4)}`,
-          length: body.length || 30,
-        },
-        select: { id: true },
+      created = await createEventTypeCompat({
+        userId: user.id,
+        title: createTitle,
+        slug: `${baseSlug}-${Date.now().toString().slice(-4)}`,
+        length: createLength,
       });
     }
 

@@ -5,7 +5,12 @@ export default async function UserHubPage({ params }: { params: Promise<{ userna
   const { username } = await params;
 
   const user = await prisma.user.findUnique({
-    where: { username }
+    where: { username },
+    select: {
+      id: true,
+      username: true,
+      name: true,
+    },
   });
 
   if (!user) {
