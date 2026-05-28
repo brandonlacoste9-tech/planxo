@@ -84,14 +84,54 @@ export class ConversationManager {
     return response;
   }
 
-  async processUserInput(text: string): Promise<string> {
-    this.addToTranscript('user', text);
-    
-    const response = await this.generateResponse(text);
-    this.addToTranscript('assistant', response);
-    this.onResponse?.(response);
-    
-    return response;
+  async processUserInput(input: string): Promise<void> {
+    this.addToTranscript('user', input);
+
+    // Check for missing fields
+    const context = this.getContext();
+    if (!context.name) {
+      this.addToTranscript('assistant', "Quel est votre nom complet ?");
+      this.updateContext({ name: input });
+      return;
+    }
+
+    if (!context.email) {
+      this.addToTranscript('assistant', "Quelle est votre adresse e-mail ?");
+      this.updateContext({ email: input });
+      return;
+    }
+
+    if (!context.startTime) {
+      this.addToTranscript('assistant', "À quelle heure souhaitez-vous réserver ?");
+      this.updateContext({ startTime: input });
+      return;
+    }
+
+    // All fields are collected, proceed to booking
+    this.addToTranscript('assistant', "Je vérifie la disponibilité...");
+    const tools = this.tools;
+    if (!tools?.createBooking) {
+      this.addToTranscript('assistant', "Désolé, je ne peux pas effectuer de réservation pour le moment.");
+      return;
+    }
+
+    try {
+      const result = await tools.createBooking({
+        name: context.name,
+        email: context.email,
+        start: context.startTime,
+        date: context.date || new Date().toISOString().split('T')[0],
+        time: context.startTime,
+      });
+
+      if (result.success) {
+        this.addToTranscript('assistant', "Votre rendez-vous a été réservé avec succès !");
+      } else {
+        this.addToTranscript('assistant', `Échec de la réservation : ${result.message}`);
+      }
+    } catch (error) {
+      this.addToTranscript('assistant', "Une erreur s'est produite lors de la réservation. Veuillez réessayer plus tard.");
+    }
   }
 
   private async generateResponse(userText: string): Promise<string> {
