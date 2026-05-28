@@ -177,11 +177,6 @@ export async function POST(request: NextRequest) {
     // Meeting URL
     const locationType = eventType.location; // already mapped from locations[0].type
     let meetingUrl = body.meetingUrl || null;
-    if (!meetingUrl) {
-      if (locationType?.includes("zoom")) {
-        meetingUrl = `https://zoom.us/j/${Math.floor(Math.random() * 9999999999)}`;
-      }
-    }
 
     // ── Host-aware conflict checks + assignment ──
     let assignedUserId: string = ownerUserId;
@@ -353,10 +348,36 @@ export async function POST(request: NextRequest) {
       console.error("Email non-bloquant:", emailErr);
     }
 
-    // ── External calendar sync (non-blocking): Google + Outlook ──
+    // ── External calendar sync (non-blocking): Zoom + Google + Outlook ──
     let syncedMeetingUrl = booking.location || null;
     try {
-      const { createGoogleCalendarEvent, createOutlookCalendarEvent } = await import("@/lib/calendar-sync");
+      const { createGoogleCalendarEvent, createOutlookCalendarEvent, createZoomMeeting } = await import("@/lib/calendar-sync");
+
+      if (!syncedMeetingUrl && locationType?.includes("zoom")) {
+        try {
+          const durationMinutes = Math.max(
+            1,
+            Math.round(
+              (new Date(booking.endTime || end.toISOString()).getTime() -
+                new Date(booking.startTime || start.toISOString()).getTime()) /
+                60000
+            )
+          );
+
+          const zoomMeeting = await createZoomMeeting({
+            userId: assignedUserId,
+            title: `${eventType?.title || "Rendez-vous"} avec ${guestName}`,
+            startTime: booking.startTime || start.toISOString(),
+            durationMinutes,
+            timeZone: "America/Toronto",
+          });
+
+          const zoomJoinUrl = zoomMeeting?.join_url;
+          if (zoomJoinUrl) syncedMeetingUrl = zoomJoinUrl;
+        } catch (zoomErr) {
+          console.error("Zoom meeting creation failed (non-blocking):", zoomErr);
+        }
+      }
 
       if (locationType?.includes("teams")) {
         try {
@@ -428,6 +449,10 @@ export async function POST(request: NextRequest) {
         } catch (outlookErr) {
           console.error("Outlook Calendar sync failed (non-blocking):", outlookErr);
         }
+      }
+
+      if (!syncedMeetingUrl && locationType?.includes("zoom")) {
+        syncedMeetingUrl = `https://zoom.us/j/${Math.floor(Math.random() * 9999999999)}`;
       }
 
       if (syncedMeetingUrl && syncedMeetingUrl !== booking.location) {

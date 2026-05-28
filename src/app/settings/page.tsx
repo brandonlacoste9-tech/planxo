@@ -268,6 +268,9 @@ function CalendarsSection({ colors }: any) {
           <a href="/api/auth/outlook" style={{ display: "inline-flex", alignItems: "center", gap: 10, padding: "12px 20px", borderRadius: 10, background: "#0078D4", border: "none", color: "#fff", fontSize: 14, fontWeight: 600, textDecoration: "none", width: "fit-content" }}>
             🔷 Connecter Outlook Calendar
           </a>
+          <a href="/api/auth/zoom" style={{ display: "inline-flex", alignItems: "center", gap: 10, padding: "12px 20px", borderRadius: 10, background: "#0B5CFF", border: "none", color: "#fff", fontSize: 14, fontWeight: 600, textDecoration: "none", width: "fit-content" }}>
+            🎥 Connecter Zoom
+          </a>
         </div>
       </div>
     </div>

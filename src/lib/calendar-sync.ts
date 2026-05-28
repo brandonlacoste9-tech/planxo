@@ -17,7 +17,7 @@ interface ConnectedCalendarRow {
 // ── Google Calendar event creation ──
 
 export interface CreateGoogleCalendarEventParams {
-  /** The host's Supabase userId — used to look up their stored Credential */
+  /** The host's Supabase userId — used to look up their connected calendar token */
   userId: string;
   title: string;
   startTime: string; // ISO 8601
@@ -31,7 +31,7 @@ export interface CreateGoogleCalendarEventParams {
 
 /**
  * Create a Google Calendar event on the host's primary calendar.
- * Looks up the host's stored refresh token from the Credential table,
+ * Looks up the host's stored refresh token from connected_calendars,
  * exchanges it for a fresh access token, then POSTs the event.
  * Throws on error so the caller can handle it non-blocking.
  */
@@ -124,6 +124,14 @@ export interface CreateOutlookCalendarEventParams {
   timeZone?: string;
 }
 
+export interface CreateZoomMeetingParams {
+  userId: string;
+  title: string;
+  startTime: string;
+  durationMinutes: number;
+  timeZone?: string;
+}
+
 export async function createOutlookCalendarEvent(
   params: CreateOutlookCalendarEventParams
 ): Promise<any> {
@@ -196,6 +204,49 @@ export async function createOutlookCalendarEvent(
   return data;
 }
 
+export async function createZoomMeeting(
+  params: CreateZoomMeetingParams
+): Promise<any> {
+  const { userId, title, startTime, durationMinutes, timeZone = "UTC" } = params;
+
+  const connected = await getConnectedCalendar(userId, "zoom");
+  if (!connected) {
+    throw new Error(`No Zoom account connected for userId ${userId}`);
+  }
+
+  const accessToken = await ensureConnectedCalendarAccessToken(connected);
+
+  const body = {
+    topic: title,
+    type: 2,
+    start_time: startTime,
+    duration: Math.max(1, Math.round(durationMinutes)),
+    timezone: timeZone,
+    settings: {
+      join_before_host: true,
+      waiting_room: false,
+      participant_video: true,
+      host_video: true,
+    },
+  };
+
+  const res = await fetch("https://api.zoom.us/v2/users/me/meetings", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(`Zoom API error ${res.status}: ${JSON.stringify(data)}`);
+  }
+
+  return data;
+}
+
 /**
  * Fetch busy times from connected external calendars.
  * Currently supports Google Calendar and Outlook (Microsoft Graph).
@@ -237,7 +288,7 @@ export async function getExternalBusyTimes(
   return busy;
 }
 
-async function getConnectedCalendar(userId: string, provider: "google" | "outlook") {
+async function getConnectedCalendar(userId: string, provider: "google" | "outlook" | "zoom") {
   const { data } = await supabase
     .from("connected_calendars")
     .select("id, provider, access_token, refresh_token, expires_at, user_id")
@@ -293,6 +344,44 @@ async function ensureConnectedCalendarAccessToken(cred: ConnectedCalendarRow): P
     await supabase
       .from("connected_calendars")
       .update({ access_token: tokenData.access_token, expires_at: expiresAt })
+      .eq("id", cred.id);
+
+    return tokenData.access_token;
+  }
+
+  if (cred.provider === "zoom") {
+    const clientId = process.env.ZOOM_CLIENT_ID;
+    const clientSecret = process.env.ZOOM_CLIENT_SECRET;
+    if (!clientId || !clientSecret) throw new Error("Zoom OAuth client credentials are missing");
+
+    const basicAuth = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
+    const tokenRes = await fetch("https://zoom.us/oauth/token", {
+      method: "POST",
+      headers: {
+        Authorization: `Basic ${basicAuth}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({
+        grant_type: "refresh_token",
+        refresh_token: cred.refresh_token,
+      }),
+    });
+    const tokenData = await tokenRes.json();
+    if (!tokenRes.ok || !tokenData.access_token) {
+      throw new Error(`Failed to refresh Zoom token: ${tokenData.reason || tokenData.error || tokenRes.status}`);
+    }
+
+    const expiresAt = tokenData.expires_in
+      ? new Date(Date.now() + tokenData.expires_in * 1000).toISOString()
+      : null;
+
+    await supabase
+      .from("connected_calendars")
+      .update({
+        access_token: tokenData.access_token,
+        refresh_token: tokenData.refresh_token || cred.refresh_token,
+        expires_at: expiresAt,
+      })
       .eq("id", cred.id);
 
     return tokenData.access_token;
