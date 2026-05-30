@@ -1,9 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isRateLimited } from "@/lib/rateLimit";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
   try {
+    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    if (isRateLimited(ip, 10, 60_000)) {
+      return NextResponse.json(
+        { error: "Trop de tentatives. Veuillez réessayer dans une minute." },
+        { status: 429 }
+      );
+    }
+
     const body = await request.json();
     
     const { 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { isRateLimited } from "@/lib/rateLimit";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +21,14 @@ function isValidElevenLabsAuth(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
+    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    if (isRateLimited(ip, 10, 60_000)) {
+      return NextResponse.json(
+        { error: "Trop de tentatives. Veuillez réessayer dans une minute." },
+        { status: 429 }
+      );
+    }
+
     const body = await request.json();
     const { name, email, start_time, duration = 30, notes, username, eventTypeSlug } = body;
 

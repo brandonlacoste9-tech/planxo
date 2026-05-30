@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { isRateLimited } from "@/lib/rateLimit";
 import crypto from "crypto";
 
 function normalizeSchedulingType(value: unknown): "individual" | "round_robin" | "collective" | "pooled" {
@@ -53,6 +54,14 @@ async function generateUniqueInteracRef(): Promise<string> {
 
 export async function POST(request: Request) {
   try {
+    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    if (isRateLimited(ip, 10, 60_000)) {
+      return NextResponse.json(
+        { error: "Trop de tentatives. Veuillez réessayer dans une minute." },
+        { status: 429 }
+      );
+    }
+
     const body = await request.json();
     const { eventTypeId, email, name, startTime, endTime, paymentMethod = "INTERAC", quantity = 1 } = body; // Added quantity with default
 
