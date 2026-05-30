@@ -1,6 +1,19 @@
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 
+export async function generateMetadata({ params }: { params: Promise<{ username: string }> }) {
+  const { username } = await params;
+  return {
+    title: `${username} — Planxo`,
+    description: `Réservez un rendez-vous avec ${username} via Planxo.`,
+    openGraph: {
+      title: `${username} — Planxo`,
+      description: `Réservez un rendez-vous avec ${username} via Planxo.`,
+      type: "profile",
+    },
+  };
+}
+
 export default async function UserHubPage({ params }: { params: Promise<{ username: string }> }) {
   const { username } = await params;
 

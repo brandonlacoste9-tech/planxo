@@ -1,11 +1,11 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
-export async function GET(request: NextRequest) {
+export async function POST() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.redirect(`${request.nextUrl.origin}/login`);
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   await supabase.from("connected_calendars").delete().eq("user_id", user.id).eq("provider", "google");
-  return NextResponse.redirect(`${request.nextUrl.origin}/settings?tab=calendars&disconnected=google`);
+  return NextResponse.json({ success: true });
 }

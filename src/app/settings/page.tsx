@@ -321,9 +321,15 @@ function CalendarsSection({ colors }: any) {
 
                   {isConnected ? (
                     p.disconnectUrl ? (
-                      <a href={p.disconnectUrl} style={{ fontSize: 13, color: "#ef4444", fontWeight: 600, textDecoration: "none" }}>
+                      <button
+                        onClick={async () => {
+                          await fetch(p.disconnectUrl!, { method: "POST" });
+                          window.location.href = "/settings?tab=calendars&disconnected=google";
+                        }}
+                        style={{ fontSize: 13, color: "#ef4444", fontWeight: 600, background: "none", border: "none", cursor: "pointer", padding: 0 }}
+                      >
                         Déconnecter
-                      </a>
+                      </button>
                     ) : null
                   ) : (
                     <a
