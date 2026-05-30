@@ -29,7 +29,8 @@ export async function POST(request: NextRequest) {
     const meta = session.metadata;
     if (!meta) return NextResponse.json({ error: "No metadata" }, { status: 400 });
 
-    const bookingId = crypto.randomUUID();
+    const bookingUid = crypto.randomUUID();
+    const cancelToken = crypto.randomUUID();
     const now = new Date().toISOString();
 
     // Generate meeting URL
@@ -48,10 +49,20 @@ export async function POST(request: NextRequest) {
     if (locationType === "google-meet") meetingUrl = `https://meet.google.com/${randStr()}`;
     else if (locationType === "zoom") meetingUrl = `https://zoom.us/j/${Math.floor(Math.random() * 9999999999)}`;
 
-    const { error } = await supabase.from("Booking").insert({
-      id: bookingId,
+    const eventTitle = meta.eventTitle || "Rendez-vous";
+
+    const responses = {
+      name: meta.guestName,
+      email: meta.guestEmail,
+      timeZone: meta.guestTimezone || "America/Toronto",
+      notes: meta.guestNotes || "",
+    };
+
+    const baseInsertPayload: Record<string, any> = {
+      uid: bookingUid,
       eventTypeId: meta.eventTypeId,
       userId: meta.userId,
+      title: `${eventTitle} avec ${meta.guestName}`,
       guestName: meta.guestName,
       guestEmail: meta.guestEmail,
       guestNotes: meta.guestNotes || "",
@@ -59,20 +70,46 @@ export async function POST(request: NextRequest) {
       endTime: meta.endTime,
       status: "confirmed",
       paid: true,
-      basePriceCents: parseInt(meta.basePriceCents || "0"),
-      tpsCents: parseInt(meta.tpsCents || "0"),
-      tvqCents: parseInt(meta.tvqCents || "0"),
-      totalCents: parseInt(meta.totalCents || "0"),
+      cancelToken,
+      responses,
       meetingUrl,
       updatedAt: now,
-    });
+    };
 
-    if (error) {
-      console.error("Failed to create booking:", error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+    // Same resilient insert pattern as /api/v2/bookings:
+    // try with all columns, then strip unknown ones if the DB rejects them.
+    let booking: any = null;
+    const insertPayload = { ...baseInsertPayload };
+
+    for (let attempt = 0; attempt < 8; attempt++) {
+      const { data, error: insertError } = await supabase
+        .from("Booking")
+        .insert(insertPayload)
+        .select()
+        .single();
+
+      if (!insertError) {
+        booking = data;
+        break;
+      }
+
+      const msg = String(insertError.message || "");
+      const missingColumn =
+        msg.match(/Could not find the '([^']+)' column/)?.[1] ||
+        msg.match(/column "([^"]+)" of relation/)?.[1];
+
+      if (missingColumn && missingColumn in insertPayload) {
+        delete insertPayload[missingColumn];
+        continue;
+      }
+
+      console.error("Failed to create booking:", insertError);
+      return NextResponse.json({ error: insertError.message }, { status: 500 });
     }
 
-    const eventTitle = meta.eventTitle || "Rendez-vous";
+    if (!booking) {
+      return NextResponse.json({ error: "Failed to create booking after retries" }, { status: 500 });
+    }
 
     // Look up host user for confirmation/notification emails
     const { data: hostUser } = await supabase
@@ -92,7 +129,7 @@ export async function POST(request: NextRequest) {
         startTime: meta.startTime,
         endTime: meta.endTime,
         meetingUrl: meetingUrl || undefined,
-        uid: bookingId,
+        uid: bookingUid,
       });
     } catch (emailErr) {
       console.warn("Email send failed:", emailErr);
@@ -140,13 +177,13 @@ export async function POST(request: NextRequest) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             event: "booking.created",
-            booking: { id: bookingId, guestName: meta.guestName, start: meta.startTime, paid: true },
+            booking: { id: booking.id, uid: bookingUid, guestName: meta.guestName, start: meta.startTime, paid: true },
           }),
         }).catch(() => {});
       }
     }
 
-    return NextResponse.json({ status: "success", data: { bookingId } });
+    return NextResponse.json({ status: "success", data: { bookingId: booking.id, uid: bookingUid } });
   }
 
   // Handle other events
