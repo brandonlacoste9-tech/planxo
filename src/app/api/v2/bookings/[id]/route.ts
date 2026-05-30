@@ -25,3 +25,48 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
     },
   });
 }
+
+// DELETE /api/v2/bookings/:id
+export async function DELETE(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  
+  try {
+    // First, check if the booking exists
+    const { data: booking, error: fetchError } = await supabase
+      .from("Booking")
+      .select("id, userId")
+      .eq("id", id)
+      .single();
+
+    if (fetchError || !booking) {
+      return NextResponse.json(
+        { status: "error", error: { message: "Booking not found" } },
+        { status: 404 }
+      );
+    }
+
+    // Delete the booking
+    const { error: deleteError } = await supabase
+      .from("Booking")
+      .delete()
+      .eq("id", id);
+
+    if (deleteError) {
+      return NextResponse.json(
+        { status: "error", error: { message: "Failed to delete booking" } },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({
+      status: "success",
+      message: "Booking deleted successfully",
+      data: { id },
+    });
+  } catch (error: any) {
+    return NextResponse.json(
+      { status: "error", error: { message: error?.message || "Internal server error" } },
+      { status: 500 }
+    );
+  }
+}
