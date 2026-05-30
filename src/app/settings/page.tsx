@@ -279,8 +279,8 @@ function CalendarsSection({ colors }: any) {
 
   const providers = [
     { key: "google", label: "Google Calendar", icon: "🔵", connectUrl: "/api/auth/google", disconnectUrl: "/api/auth/google/disconnect", connectBg: colors.bg, connectBorder: `1px solid ${colors.border}`, connectColor: colors.text },
-    { key: "outlook", label: "Outlook Calendar", icon: "🔷", connectUrl: "/api/auth/outlook", disconnectUrl: null, connectBg: "#0078D4", connectBorder: "none", connectColor: "#fff" },
-    { key: "zoom", label: "Zoom", icon: "🎥", connectUrl: "/api/auth/zoom", disconnectUrl: null, connectBg: "#0B5CFF", connectBorder: "none", connectColor: "#fff" },
+    { key: "outlook", label: "Outlook Calendar", icon: "🔷", connectUrl: "/api/auth/outlook", disconnectUrl: "/api/auth/outlook/disconnect", connectBg: "#0078D4", connectBorder: "none", connectColor: "#fff" },
+    { key: "zoom", label: "Zoom", icon: "🎥", connectUrl: "/api/auth/zoom", disconnectUrl: "/api/auth/zoom/disconnect", connectBg: "#0B5CFF", connectBorder: "none", connectColor: "#fff" },
   ];
 
   return (
@@ -324,7 +324,7 @@ function CalendarsSection({ colors }: any) {
                       <button
                         onClick={async () => {
                           await fetch(p.disconnectUrl!, { method: "POST" });
-                          window.location.href = "/settings?tab=calendars&disconnected=google";
+                          window.location.href = `/settings?tab=calendars&disconnected=${p.key}`;
                         }}
                         style={{ fontSize: 13, color: "#ef4444", fontWeight: 600, background: "none", border: "none", cursor: "pointer", padding: 0 }}
                       >

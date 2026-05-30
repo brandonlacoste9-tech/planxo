@@ -84,6 +84,17 @@ function generateEventTypeId() {
   return `evt_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
+// Map a user's stored conferencing preference (a display label) to an event-type location value.
+function conferencingToLocation(conferencing: unknown): string | null {
+  if (typeof conferencing !== "string") return null;
+  const normalized = conferencing.toLowerCase();
+  if (normalized.includes("zoom")) return "zoom";
+  if (normalized.includes("teams")) return "teams";
+  if (normalized.includes("phone") || normalized.includes("téléphone") || normalized.includes("telephone")) return "phone";
+  if (normalized.includes("meet") || normalized.includes("google")) return "google-meet";
+  return null;
+}
+
 async function createEventTypeLegacyInsert(params: {
   userId: string;
   title: string;
@@ -232,9 +243,25 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // Default new event types to the user's global conferencing preference when no
+    // explicit location is provided.
+    let preferredLocation: string | null = null;
+    if (!body.location) {
+      try {
+        // `conferencing` is added to the users table via raw SQL migration and is not in the
+        // Prisma schema, so read it with a raw query.
+        const rows = await prisma.$queryRaw<{ conferencing: string | null }[]>`
+          SELECT "conferencing" FROM "public"."User" WHERE "id" = ${user.id} LIMIT 1
+        `;
+        preferredLocation = conferencingToLocation(rows?.[0]?.conferencing);
+      } catch {
+        preferredLocation = null;
+      }
+    }
+
     const optionalUpdates: Record<string, any> = {
       description: body.description || "",
-      location: body.location || "google-meet",
+      location: body.location || preferredLocation || "google-meet",
       color: body.color || "#242424",
       price: body.price || 0,
       currency: body.currency || "cad",
