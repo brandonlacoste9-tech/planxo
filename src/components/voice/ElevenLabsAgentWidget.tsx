@@ -7,6 +7,8 @@ import { VoiceAgentErrorBoundary } from './ErrorBoundary';
 const DEFAULT_AGENT_ID =
   process.env.NEXT_PUBLIC_ELEVENLABS_AGENT_ID || 'agent_1901ksv92wxhffxbsg30b0mdhkv1';
 
+type AgentLanguage = 'fr' | 'en';
+
 interface ElevenLabsAgentWidgetProps {
   /** Planxo user/host the agent books for (passed to tool routes). */
   username?: string;
@@ -14,8 +16,32 @@ interface ElevenLabsAgentWidgetProps {
   eventTypeSlug?: string;
   /** Override the Conversational AI agent ID (defaults to env / built-in). */
   agentId?: string;
+  /** Spoken language for the agent. Defaults to French (Quebec). */
+  language?: AgentLanguage;
   mode?: 'demo' | 'dashboard';
   className?: string;
+}
+
+function agentOverrides(language: AgentLanguage) {
+  return {
+    agent: {
+      language,
+      prompt: {
+        prompt:
+          language === 'fr'
+            ? `Tu es un assistant de prise de rendez-vous pour Planxo. Parle toujours en français.
+             Vérifie les disponibilités, collecte le nom et le courriel du client, et confirme le rendez-vous.
+             Fuseau horaire : America/Toronto.`
+            : `You are a scheduling assistant for Planxo. Always speak in English.
+             Check availability, collect the caller's name and email, and confirm the appointment.
+             Timezone: America/Toronto.`,
+      },
+      firstMessage:
+        language === 'fr'
+          ? "Bonjour ! Je suis l'assistant de planification de Planxo. Comment puis-je vous aider aujourd'hui ?"
+          : "Hello! I'm the Planxo scheduling assistant. How can I help you today?",
+    },
+  };
 }
 
 interface TranscriptEntry {
@@ -51,14 +77,17 @@ function AgentConversation({
   mode,
   className,
   agentId,
+  language: initialLanguage,
 }: {
   mode: 'demo' | 'dashboard';
   className: string;
   agentId: string;
+  language: AgentLanguage;
 }) {
   const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
+  const [language, setLanguage] = useState<AgentLanguage>(initialLanguage);
 
   const conversation = useConversation({
     onConnect: () => setError(null),
@@ -81,14 +110,18 @@ function AgentConversation({
       const res = await fetch('/api/v2/elevenlabs/agent');
       const data = await res.json().catch(() => ({}));
 
+      // SDK types don't fully expose `overrides`, so cast the session config as any.
+      const overrides = agentOverrides(language);
+
       if (res.ok && data.signedUrl) {
-        await startSession({ signedUrl: data.signedUrl });
+        await startSession({ signedUrl: data.signedUrl, overrides } as any);
       } else {
         // Connect with the public agent ID via WebRTC (lower latency).
         await startSession({
           agentId: data.agentId || agentId,
           connectionType: 'webrtc',
-        });
+          overrides,
+        } as any);
       }
     } catch (err: any) {
       if (err?.name === 'NotAllowedError') {
@@ -99,7 +132,7 @@ function AgentConversation({
     } finally {
       setStarting(false);
     }
-  }, [startSession, agentId]);
+  }, [startSession, agentId, language]);
 
   const stop = useCallback(async () => {
     try {
@@ -140,6 +173,31 @@ function AgentConversation({
         />
         <span style={{ fontWeight: 600, color: statusColor }}>{statusText}</span>
       </div>
+
+      {!isActive && (
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 8 }}>
+          {(['fr', 'en'] as AgentLanguage[]).map((lng) => {
+            const selected = language === lng;
+            return (
+              <button
+                key={lng}
+                onClick={() => setLanguage(lng)}
+                style={{
+                  padding: '6px 16px',
+                  fontSize: 13,
+                  fontWeight: 700,
+                  borderRadius: 999,
+                  cursor: 'pointer',
+                  border: `1px solid ${COLORS.border}`,
+                  background: selected ? COLORS.gold : 'transparent',
+                  color: selected ? COLORS.bg : COLORS.textMuted,
+                }}>
+                {lng.toUpperCase()}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       <div style={{ textAlign: 'center' }}>
         {!isActive ? (
@@ -247,6 +305,7 @@ export function ElevenLabsAgentWidget({
   username = 'planxo',
   eventTypeSlug = 'consultation-30min',
   agentId = DEFAULT_AGENT_ID,
+  language = 'fr',
   mode = 'dashboard',
   className = '',
 }: ElevenLabsAgentWidgetProps) {
@@ -278,7 +337,7 @@ export function ElevenLabsAgentWidget({
   return (
     <VoiceAgentErrorBoundary>
       <ConversationProvider clientTools={clientTools}>
-        <AgentConversation mode={mode} className={className} agentId={agentId} />
+        <AgentConversation mode={mode} className={className} agentId={agentId} language={language} />
       </ConversationProvider>
     </VoiceAgentErrorBoundary>
   );

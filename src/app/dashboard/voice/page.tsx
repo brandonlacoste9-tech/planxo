@@ -108,6 +108,7 @@ export default function PlanxoAIDashboardPage() {
             mode="dashboard"
             username="planxo"
             eventTypeSlug="consultation-30min"
+            language="fr"
           />
         )}
       </div>

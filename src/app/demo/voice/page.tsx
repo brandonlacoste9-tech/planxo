@@ -43,6 +43,7 @@ export default function VoiceDemoPage() {
           mode="demo"
           username="planxo"
           eventTypeSlug="consultation-30min"
+          language="fr"
         />
       </div>
     </div>
