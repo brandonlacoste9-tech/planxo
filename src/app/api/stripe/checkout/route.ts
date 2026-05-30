@@ -110,6 +110,12 @@ export async function POST(request: NextRequest) {
 
     const origin = request.headers.get("origin") || request.nextUrl.origin;
 
+    // Look up username from userId (used for the booking page redirect URL)
+    const { data: hostUser } = await supabase.from("users").select("username").eq("id", et.userId).single();
+    const hostUsername = username || hostUser?.username || "planxo";
+
+    const locationType = Array.isArray(et.locations) ? (et.locations[0]?.type || "google-meet") : "google-meet";
+
     // Create Stripe Checkout Session
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
@@ -159,9 +165,12 @@ export async function POST(request: NextRequest) {
         tpsCents: String(tax.tpsCents),
         tvqCents: String(tax.tvqCents),
         totalCents: String(tax.totalCents),
+        eventTitle: et.title,
+        hostUsername,
+        locationType,
       },
-      success_url: `${origin}/${et.slug}?booking=success&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/${et.slug}?booking=cancelled`,
+      success_url: `${origin}/${hostUsername}/${et.slug}?booking=success&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin}/${hostUsername}/${et.slug}?booking=cancelled`,
     });
 
     return NextResponse.json({
